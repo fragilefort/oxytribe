@@ -1,3 +1,5 @@
+# oxytribe
+This is an attempt to improve the HyperTRIBE software by moving some parts from Perl to Rust and Python.
 # HyperTRIBE
 HyperTRIBE is a technique used for the identification of the targets of RNA binding proteins (RBP) in vivo. This is an improved version of a previously developed technique called TRIBE (Targets of RNA-binding proteins Identified By Editing).
 
