@@ -40,7 +40,7 @@ fn extract_md_tag<'a>(fields: &'a [&str]) -> Option<&'a str> {
         .map(|field| &field[5..])
 }
 
-fn parse(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
+fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
     cigar
         .split_inclusive(|c: char| c.is_ascii_alphabetic())
         .map(|pattern| {
