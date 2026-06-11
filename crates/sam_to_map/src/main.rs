@@ -47,7 +47,7 @@ fn extract_md_tag<'a>(fields: &'a [&str]) -> Option<&'a str> {
 
 fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
     cigar
-        .split_inclusive(|c: char| c.is_ascii_alphabetic())
+        .split_inclusive(|c: char| c.is_ascii_alphabetic() || c == '=')
         .map(|pattern| {
             let split_pos = pattern.len() - 1;
             let (len, op) = pattern.split_at(split_pos);
