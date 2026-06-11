@@ -3,5 +3,9 @@
 version = 4
 
 [[package]]
-name = "oxytribe"
+name = "find_edit_sites"
+version = "0.1.0"
+
+[[package]]
+name = "sam_to_map"
 version = "0.1.0"
