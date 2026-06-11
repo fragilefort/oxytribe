@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -16,18 +17,22 @@ static CIGAR_TABLE: [(u8, u8); 128] = {
 };
 
 fn main() -> std::io::Result<()> {
+    let mut map: HashMap<u32, (u32, u32)> = HashMap::with_capacity(1_000_000);
     let f = File::open("sample.sam").expect("Couldn't open sam file");
     let reader = BufReader::new(f);
-    let lines_iter = reader
+    reader
         .lines()
         .map(|l| l.unwrap())
         .filter(|line| !line.starts_with("@"))
-        .map(|line| {
+        .for_each(|line| {
             let fields: Vec<&str> = line.split('\t').collect();
-            let start = fields[3].parse::<u32>();
+            let start = fields[3].parse::<u32>().unwrap();
             let cigar = fields[5];
-            let sequence = fields[9];
-            let md_tag = extract_md_tag(&fields);
+            let sequence = fields[9].as_bytes();
+            let md_tag = extract_md_tag(&fields).unwrap_or("");
+
+            parse_cigar(cigar).zip(parse_md(md_tag))
+            // emit a2g and insert into map
         });
 
     Ok(())
@@ -48,7 +53,7 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
             let (len, op) = pattern.split_at(split_pos);
 
             let len = len.parse::<u32>().expect("invalid CIGAR length");
-            let op = op.chars().next().expect("missing CIGAR op") as usize;
+            let op = op.as_bytes()[0] as usize;
 
             let (r, q) = CIGAR_TABLE[op];
             (len, r, q)
