@@ -18,3 +18,10 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
+
+fn extract_md_tag<'a>(fields: &'a [&str]) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|field| field.starts_with("MD:Z:"))
+        .map(|field| &field[5..])
+}
