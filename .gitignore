@@ -3,3 +3,8 @@
 !.pixi/config.toml
 .nextflow/
 .nf-core.yml
+
+
+# Added by cargo
+
+/target
