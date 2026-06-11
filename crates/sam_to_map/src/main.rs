@@ -7,6 +7,6 @@ fn main() -> std::io::Result<()> {
     let lines_iter = reader
         .lines()
         .map(|l| l.unwrap())
-        .filter(|line| line.starts_with("@"));
+        .filter(|line| !line.starts_with("@"));
     Ok(())
 }
