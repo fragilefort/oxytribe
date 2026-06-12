@@ -31,9 +31,9 @@ fn main() -> std::io::Result<()> {
             let cigar = fields[5];
             let sequence = fields[9].as_bytes();
             let md_tag = extract_md_tag(&fields).unwrap_or("");
-
-            parse_cigar(cigar).zip(parse_md(md_tag))
-            // emit a2g and insert into map
+            let cigar_per_base = parse_cigar(cigar)
+                .flat_map(|(len, r, q)| std::iter::repeat((r, q)).take(len as usize));
+            cigar_per_base.zip(parse_md(md_tag))
         });
 
     Ok(())
