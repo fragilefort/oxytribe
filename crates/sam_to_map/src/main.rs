@@ -1,7 +1,8 @@
 use either::Either;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::Write;
+use std::io::{BufRead, BufReader, BufWriter};
 
 static CIGAR_TABLE: [(u8, u8); 128] = {
     let mut table = [(0u8, 0u8); 128];
@@ -52,6 +53,20 @@ fn main() -> std::io::Result<()> {
                     read_idx += q as usize;
                 });
         });
+
+    let mut entries: Vec<(u32, (u32, u32, u32))> = map.into_iter().collect();
+    entries.sort_by_key(|(pos, _)| *pos);
+
+    let outfile = File::create("output.bin")?;
+    let mut writer = BufWriter::new(outfile);
+
+    for (pos, (a, g, other)) in entries {
+        writer.write_all(&pos.to_le_bytes())?;
+        writer.write_all(&a.to_le_bytes())?;
+        writer.write_all(&g.to_le_bytes())?;
+        writer.write_all(&other.to_le_bytes())?;
+    }
+    writer.flush()?;
 
     Ok(())
 }
