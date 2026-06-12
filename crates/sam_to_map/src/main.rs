@@ -1,3 +1,4 @@
+use either::Either;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -31,7 +32,7 @@ fn main() -> std::io::Result<()> {
             let sequence = fields[9].as_bytes();
             let md_tag = extract_md_tag(&fields).unwrap_or("");
 
-            // parse_cigar(cigar).zip(parse_md(md_tag))
+            parse_cigar(cigar).zip(parse_md(md_tag))
             // emit a2g and insert into map
         });
 
@@ -60,7 +61,15 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
         })
 }
 
-// fn parse_md(md_tag: &str) -> Iterator<Item = u8> {
-//     let it = md_tag.chars().peekable();
-//     // ask if it is a charcter, if it is, go next and return it?
-// }
+fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> {
+    md.as_bytes()
+        .chunk_by(|a, b| a.is_ascii_digit() == b.is_ascii_digit())
+        .flat_map(|chunk| {
+            if chunk[0].is_ascii_digit() {
+                let n: usize = std::str::from_utf8(chunk).unwrap().parse().unwrap();
+                Either::Left(std::iter::repeat(None).take(n))
+            } else {
+                Either::Right(std::iter::once(Some(chunk[0])))
+            }
+        })
+}
