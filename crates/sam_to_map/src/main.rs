@@ -31,7 +31,7 @@ fn main() -> std::io::Result<()> {
             let sequence = fields[9].as_bytes();
             let md_tag = extract_md_tag(&fields).unwrap_or("");
 
-            parse_cigar(cigar).zip(parse_md(md_tag))
+            // parse_cigar(cigar).zip(parse_md(md_tag))
             // emit a2g and insert into map
         });
 
@@ -59,3 +59,8 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
             (len, r, q)
         })
 }
+
+// fn parse_md(md_tag: &str) -> Iterator<Item = u8> {
+//     let it = md_tag.chars().peekable();
+//     // ask if it is a charcter, if it is, go next and return it?
+// }
