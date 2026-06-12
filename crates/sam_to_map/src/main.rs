@@ -18,7 +18,7 @@ static CIGAR_TABLE: [(u8, u8); 128] = {
 };
 
 fn main() -> std::io::Result<()> {
-    let mut map: HashMap<u32, (u32, u32)> = HashMap::with_capacity(1_000_000);
+    let mut map: HashMap<u32, (u32, u32, u32)> = HashMap::with_capacity(1_000_000);
     let f = File::open("sample.sam").expect("Couldn't open sam file");
     let reader = BufReader::new(f);
     reader
@@ -33,7 +33,24 @@ fn main() -> std::io::Result<()> {
             let md_tag = extract_md_tag(&fields).unwrap_or("");
             let cigar_per_base = parse_cigar(cigar)
                 .flat_map(|(len, r, q)| std::iter::repeat((r, q)).take(len as usize));
-            cigar_per_base.zip(parse_md(md_tag))
+            let mut ref_pos = start;
+            let mut read_idx: usize = 0;
+
+            cigar_per_base
+                .zip(parse_md(md_tag))
+                .for_each(|((r, q), md_base)| {
+                    if r == 1 && q == 1 && md_base == Some(b'A') {
+                        let read_base = sequence[read_idx];
+                        let entry = map.entry(ref_pos).or_insert((0, 0, 0)); // (A, G, other)
+                        match read_base {
+                            b'A' => entry.0 += 1,
+                            b'G' => entry.1 += 1,
+                            _ => entry.2 += 1,
+                        }
+                    }
+                    ref_pos += r as u32;
+                    read_idx += q as usize;
+                });
         });
 
     Ok(())
