@@ -19,8 +19,15 @@ static CIGAR_TABLE: [(u8, u8); 128] = {
 };
 
 fn main() -> std::io::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 3 {
+        eprintln!("Usage: {} <input.sam> <output.bin>", args[0]);
+        std::process::exit(1);
+    }
+    let input_path = &args[1];
+    let output_path = &args[2];
     let mut map: HashMap<u32, (u32, u32, u32)> = HashMap::with_capacity(1_000_000);
-    let f = File::open("sample.sam").expect("Couldn't open sam file");
+    let f = File::open(input_path).expect("Couldn't open sam file");
     let reader = BufReader::new(f);
     reader
         .lines()
@@ -57,7 +64,7 @@ fn main() -> std::io::Result<()> {
     let mut entries: Vec<(u32, (u32, u32, u32))> = map.into_iter().collect();
     entries.sort_by_key(|(pos, _)| *pos);
 
-    let outfile = File::create("output.bin")?;
+    let outfile = File::create(output_path)?;
     let mut writer = BufWriter::new(outfile);
 
     for (pos, (a, g, other)) in entries {
