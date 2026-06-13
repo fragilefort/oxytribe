@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::path::PathBuf;
+use std::{io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
 struct Cli {
@@ -21,5 +21,10 @@ struct Cli {
     min_rna_edit_frac: f64,
 }
 fn main() -> std::io::Result<()> {
+    let cli = Cli::parse();
+    let ctrlf = open(&cli.control_path)?;
+    let rnaf = open(&cli.rna_path)?;
+
+    let rnabuf = BufReader::new(rnaf);
     Ok(())
 }
