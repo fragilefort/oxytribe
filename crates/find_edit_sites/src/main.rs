@@ -1,4 +1,8 @@
 use clap::Parser;
+use memmap2::Mmap;
+use std::fs::File;
+use std::io::Read;
+use std::thread::panicking;
 use std::{io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
@@ -20,11 +24,34 @@ struct Cli {
     #[arg(long, default_value_t = 0.05)]
     min_rna_edit_frac: f64,
 }
+
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
-    let ctrlf = open(&cli.control_path)?;
-    let rnaf = open(&cli.rna_path)?;
+    let ctrlf = File::open(&cli.control_path)?;
+    let rnaf = File::open(&cli.rna_path)?;
+    let mut rnabuf = BufReader::new(&rnaf);
+    // Trust me bro
+    let ctrl_map = unsafe { Mmap::map(&ctrlf)? };
+    let pos_records = std::iter::from_fn(move || {
+        let mut buf = [0u8; 16];
+        match rnabuf.read_exact(&mut buf) {
+            Ok(()) => Some(buf),
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => None,
+            Err(e) => panic!("read error {e}"),
+        }
+    });
+    let pos_records = pos_records.map(|buf| {
+        let pos = u32::from_le_bytes(buf[..4].try_into().unwrap());
+        let a_count = u32::from_le_bytes(buf[4..8].try_into().unwrap());
+        let g_count = u32::from_le_bytes(buf[8..12].try_into().unwrap());
+        let other = u32::from_le_bytes(buf[12..16].try_into().unwrap());
+        (pos, a_count, g_count, other)
+    });
 
-    let rnabuf = BufReader::new(rnaf);
     Ok(())
+}
+
+fn get_position(slice: &[u8]) -> u32 {
+    let bytes: [u8; 4] = slice.try_into().unwrap();
+    u32::from_le_bytes(bytes)
 }
