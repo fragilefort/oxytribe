@@ -1,8 +1,7 @@
 use clap::Parser;
 use memmap2::Mmap;
 use std::fs::File;
-use std::io::Read;
-use std::thread::panicking;
+use std::io::{BufWriter, Read, Write};
 use std::{io::BufReader, path::PathBuf};
 
 #[derive(Parser)]
@@ -30,7 +29,10 @@ fn main() -> std::io::Result<()> {
     let ctrlf = File::open(&cli.control_path)?;
     let rnaf = File::open(&cli.rna_path)?;
     let mut rnabuf = BufReader::new(&rnaf);
+    let outfile = File::create(&cli.output_path)?;
+    let mut writer = BufWriter::new(outfile);
     // Trust me bro
+    //// SAFETY: ctrl file is written once by sam_to_map and not modified
     let ctrl_map = unsafe { Mmap::map(&ctrlf)? };
     let pos_records = std::iter::from_fn(move || {
         let mut buf = [0u8; 16];
@@ -47,13 +49,30 @@ fn main() -> std::io::Result<()> {
         let other = u32::from_le_bytes(buf[12..16].try_into().unwrap());
         (pos, a_count, g_count, other)
     });
+    pos_records.for_each(|(pos, rna_a, rna_g, rna_other)| {
+        if let Some((ctrl_a, ctrl_g, ctrl_othr)) = lookup_control(&ctrl_map, pos) {
+            let rna_tot = rna_a + rna_g + rna_other;
+            let ctrl_total = ctrl_a + ctrl_g + ctrl_othr;
+            let rna_edit_frac = rna_g as f64 / rna_tot as f64;
+            let ctrl_edit_frac = ctrl_g as f64 / ctrl_total as f64;
+            let ctrl_nonedit_frac = ctrl_a as f64 / ctrl_total as f64;
 
+            if ctrl_total > cli.min_control_coverage
+                && ctrl_edit_frac < cli.max_control_edit_frac
+                && ctrl_nonedit_frac >= cli.min_control_nonedit_frac
+                && rna_tot >= cli.min_rna_coverage
+                && rna_edit_frac >= cli.min_rna_edit_frac
+            {
+                writer.write_all(&pos.to_le_bytes()).unwrap();
+                writer.write_all(&rna_a.to_le_bytes()).unwrap();
+                writer.write_all(&rna_g.to_le_bytes()).unwrap();
+                writer.write_all(&ctrl_a.to_le_bytes()).unwrap();
+                writer.write_all(&ctrl_g.to_le_bytes()).unwrap();
+            }
+        }
+    });
+    writer.flush()?;
     Ok(())
-}
-
-fn get_position(slice: &[u8]) -> u32 {
-    let bytes: [u8; 4] = slice.try_into().unwrap();
-    u32::from_le_bytes(bytes)
 }
 
 fn lookup_control(ctrl_mmap: &[u8], target: u32) -> Option<(u32, u32, u32)> {
