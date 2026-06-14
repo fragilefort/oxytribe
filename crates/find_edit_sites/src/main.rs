@@ -55,3 +55,35 @@ fn get_position(slice: &[u8]) -> u32 {
     let bytes: [u8; 4] = slice.try_into().unwrap();
     u32::from_le_bytes(bytes)
 }
+
+fn lookup_control(ctrl_mmap: &[u8], target: u32) -> Option<(u32, u32, u32)> {
+    let n_records = ctrl_mmap.len() / 16;
+    if n_records == 0 {
+        return None;
+    }
+
+    let mut low = 0;
+    let mut high = n_records - 1;
+
+    while low <= high {
+        let mid = (low + high) / 2;
+        let offset = mid * 16;
+
+        let pos = u32::from_le_bytes(ctrl_mmap[offset..offset + 4].try_into().unwrap());
+
+        if pos == target {
+            let a = u32::from_le_bytes(ctrl_mmap[offset + 4..offset + 8].try_into().unwrap());
+            let g = u32::from_le_bytes(ctrl_mmap[offset + 8..offset + 12].try_into().unwrap());
+            let other = u32::from_le_bytes(ctrl_mmap[offset + 12..offset + 16].try_into().unwrap());
+            return Some((a, g, other));
+        } else if target < pos {
+            if mid == 0 {
+                return None;
+            }
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+    None
+}
