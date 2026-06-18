@@ -35,3 +35,15 @@ fn main() -> std::io::Result<()> {
         .collect();
     Ok(())
 }
+
+fn current_pos(mmap: &[u8], pointer: usize) -> Option<u32> {
+    let offset = pointer * 12;
+    if offset + 4 > mmap.len() {
+        None // exhausted
+    } else {
+        Some(u32::from_le_bytes(
+            mmap[offset..offset + 4].try_into().unwrap(),
+        ))
+    }
+}
+
