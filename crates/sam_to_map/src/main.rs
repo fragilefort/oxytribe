@@ -26,7 +26,7 @@ fn main() -> std::io::Result<()> {
     }
     let input_path = &args[1];
     let output_path = &args[2];
-    let mut map: HashMap<u32, (u32, u32, u32)> = HashMap::with_capacity(1_000_000);
+    let mut map: HashMap<u32, (u32, u32)> = HashMap::with_capacity(1_000_000);
     let f = File::open(input_path).expect("Couldn't open sam file");
     let reader = BufReader::new(f);
     reader
@@ -49,11 +49,10 @@ fn main() -> std::io::Result<()> {
                 .for_each(|((r, q), md_base)| {
                     if r == 1 && q == 1 && md_base == Some(b'A') {
                         let read_base = sequence[read_idx];
-                        let entry = map.entry(ref_pos).or_insert((0, 0, 0)); // (A, G, other)
+                        let entry = map.entry(ref_pos).or_insert((0, 0)); // (A, G, other)
                         match read_base {
-                            b'A' => entry.0 += 1,
-                            b'G' => entry.1 += 1,
-                            _ => entry.2 += 1,
+                            b'G' => entry.0 += 1,
+                            _ => entry.1 += 1,
                         }
                     }
                     ref_pos += r as u32;
@@ -61,15 +60,14 @@ fn main() -> std::io::Result<()> {
                 });
         });
 
-    let mut entries: Vec<(u32, (u32, u32, u32))> = map.into_iter().collect();
+    let mut entries: Vec<(u32, (u32, u32))> = map.into_iter().collect();
     entries.sort_by_key(|(pos, _)| *pos);
 
     let outfile = File::create(output_path)?;
     let mut writer = BufWriter::new(outfile);
 
-    for (pos, (a, g, other)) in entries {
+    for (pos, (g, other)) in entries {
         writer.write_all(&pos.to_le_bytes())?;
-        writer.write_all(&a.to_le_bytes())?;
         writer.write_all(&g.to_le_bytes())?;
         writer.write_all(&other.to_le_bytes())?;
     }
