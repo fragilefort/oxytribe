@@ -1,6 +1,6 @@
 [workspace]
 members = [
     "crates/sam_to_map",
-    "crates/find_edit_sites",
+    "crates/find_edit_sites", "crates/combine_edit_sites",
 ]
 resolver = "2"

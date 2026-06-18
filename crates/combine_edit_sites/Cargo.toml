@@ -1,0 +1,8 @@
+[package]
+name = "combine_edit_sites"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+memmap2 = "0.9"
