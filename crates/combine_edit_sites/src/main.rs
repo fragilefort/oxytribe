@@ -33,6 +33,27 @@ fn main() -> std::io::Result<()> {
         .iter()
         .map(|f| unsafe { Mmap::map(f).expect("couldn't mmap file") })
         .collect();
+    let pointers = vec![0; mmaps.len()];
+    let n_files = mmaps.len();
+    while pointers
+        .iter()
+        .enumerate()
+        .any(|(i, &p)| current_pos(&mmaps[i], p).is_some())
+    {
+        let min_pos = pointers
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &p)| current_pos(&mmaps[i], p))
+            .min();
+        if let Some(min_pos) = min_pos {
+            let contributors: Vec<usize> = pointers
+                .iter()
+                .enumerate()
+                .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_pos))
+                .map(|(i, _)| i)
+                .collect();
+        }
+    }
     Ok(())
 }
 
@@ -46,4 +67,3 @@ fn current_pos(mmap: &[u8], pointer: usize) -> Option<u32> {
         ))
     }
 }
-
