@@ -88,7 +88,7 @@ fn main() -> std::io::Result<()> {
 
 fn current_pos(mmap: &[u8], pointer: usize) -> Option<u32> {
     let offset = pointer * 12;
-    if offset + 4 > mmap.len() {
+    if offset + 12 > mmap.len() {
         None // exhausted
     } else {
         Some(u32::from_le_bytes(
