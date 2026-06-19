@@ -79,6 +79,9 @@ fn main() -> std::io::Result<()> {
             writer.write_all(&mean_g.to_le_bytes()).unwrap();
             writer.write_all(&mean_other.to_le_bytes()).unwrap();
         }
+        for i in &contributors {
+            pointers[*i] += 1;
+        }
     }
     Ok(())
 }
@@ -90,6 +93,28 @@ fn current_pos(mmap: &[u8], pointer: usize) -> Option<u32> {
     } else {
         Some(u32::from_le_bytes(
             mmap[offset..offset + 4].try_into().unwrap(),
+        ))
+    }
+}
+
+fn get_g(mmap: &[u8], pointer: usize) -> Option<u32> {
+    let offset = pointer * 12;
+    if offset + 12 > mmap.len() {
+        None
+    } else {
+        Some(u32::from_le_bytes(
+            mmap[offset + 4..offset + 8].try_into().unwrap(),
+        ))
+    }
+}
+
+fn get_other(mmap: &[u8], pointer: usize) -> Option<u32> {
+    let offset = pointer * 12;
+    if offset + 12 > mmap.len() {
+        None
+    } else {
+        Some(u32::from_le_bytes(
+            mmap[offset + 8..offset + 12].try_into().unwrap(),
         ))
     }
 }
