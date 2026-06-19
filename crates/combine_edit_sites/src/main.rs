@@ -37,7 +37,7 @@ fn main() -> std::io::Result<()> {
         .iter()
         .map(|f| unsafe { Mmap::map(f).expect("couldn't mmap file") })
         .collect();
-    let pointers = vec![0; mmaps.len()];
+    let mut pointers: Vec<usize> = vec![0; mmaps.len()];
     let n_files = mmaps.len();
     while pointers
         .iter()
@@ -66,12 +66,12 @@ fn main() -> std::io::Result<()> {
             // compute mean g and other across contributors
             let mean_g = contributors
                 .iter()
-                .map(|&i| get_g(&mmaps[i], pointers[i]))
+                .map(|&i| get_g(&mmaps[i], pointers[i]).unwrap())
                 .sum::<u32>()
                 / contributors.len() as u32;
             let mean_other = contributors
                 .iter()
-                .map(|&i| get_other(&mmaps[i], pointers[i]))
+                .map(|&i| get_other(&mmaps[i], pointers[i]).unwrap())
                 .sum::<u32>()
                 / contributors.len() as u32;
 
