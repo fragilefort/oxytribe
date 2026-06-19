@@ -1,6 +1,8 @@
 use clap::Parser;
 use memmap2::Mmap;
 use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -29,6 +31,8 @@ fn main() -> std::io::Result<()> {
         .map(|path| File::open(&path).expect("Cannot open input file"))
         .collect();
     // SAFETY: input files is written once by sam_to_map and not modified
+    let outfile = File::create(&cli.output)?;
+    let mut writer = BufWriter::new(outfile);
     let mmaps: Vec<Mmap> = files
         .iter()
         .map(|f| unsafe { Mmap::map(f).expect("couldn't mmap file") })
@@ -44,14 +48,36 @@ fn main() -> std::io::Result<()> {
             .iter()
             .enumerate()
             .filter_map(|(i, &p)| current_pos(&mmaps[i], p))
-            .min();
-        if let Some(min_pos) = min_pos {
-            let contributors: Vec<usize> = pointers
+            .min()
+            .unwrap();
+
+        let contributors: Vec<usize> = pointers
+            .iter()
+            .enumerate()
+            .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_pos))
+            .map(|(i, _)| i)
+            .collect();
+
+        let emit = match cli.mode {
+            Mode::And => contributors.len() == n_files,
+            Mode::Or => true,
+        };
+        if emit {
+            // compute mean g and other across contributors
+            let mean_g = contributors
                 .iter()
-                .enumerate()
-                .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_pos))
-                .map(|(i, _)| i)
-                .collect();
+                .map(|&i| get_g(&mmaps[i], pointers[i]))
+                .sum::<u32>()
+                / contributors.len() as u32;
+            let mean_other = contributors
+                .iter()
+                .map(|&i| get_other(&mmaps[i], pointers[i]))
+                .sum::<u32>()
+                / contributors.len() as u32;
+
+            writer.write_all(&min_pos.to_le_bytes()).unwrap();
+            writer.write_all(&mean_g.to_le_bytes()).unwrap();
+            writer.write_all(&mean_other.to_le_bytes()).unwrap();
         }
     }
     Ok(())
