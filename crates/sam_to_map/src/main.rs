@@ -1,5 +1,4 @@
 use clap::Parser;
-use either::Either;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -25,6 +24,23 @@ struct Cli {
     input_sam: PathBuf,
     output_path: PathBuf,
     chr_list_path: PathBuf,
+}
+
+enum MdToken {
+    Matches(std::iter::Take<std::iter::Repeat<Option<u8>>>),
+    Deletion,
+    Mismatch(std::iter::Once<Option<u8>>),
+}
+
+impl Iterator for MdToken {
+    type Item = Option<u8>;
+    fn next(&mut self) -> Option<Option<u8>> {
+        match self {
+            MdToken::Matches(it) => it.next(),
+            MdToken::Deletion => None,
+            MdToken::Mismatch(it) => it.next(),
+        }
+    }
 }
 
 fn main() -> std::io::Result<()> {
@@ -125,9 +141,11 @@ fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> {
         .flat_map(|chunk| {
             if chunk[0].is_ascii_digit() {
                 let n: usize = std::str::from_utf8(chunk).unwrap().parse().unwrap();
-                Either::Left(std::iter::repeat(None).take(n))
+                MdToken::Matches(std::iter::repeat(None).take(n))
+            } else if chunk[0] == b'^' {
+                MdToken::Deletion
             } else {
-                Either::Right(std::iter::once(Some(chunk[0])))
+                MdToken::Mismatch(std::iter::once(Some(chunk[0])))
             }
         })
 }
