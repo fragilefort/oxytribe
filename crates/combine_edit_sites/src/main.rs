@@ -44,7 +44,7 @@ fn main() -> std::io::Result<()> {
         .enumerate()
         .any(|(i, &p)| current_pos(&mmaps[i], p).is_some())
     {
-        let min_pos = pointers
+        let min_key = pointers
             .iter()
             .enumerate()
             .filter_map(|(i, &p)| current_pos(&mmaps[i], p))
@@ -54,7 +54,7 @@ fn main() -> std::io::Result<()> {
         let contributors: Vec<usize> = pointers
             .iter()
             .enumerate()
-            .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_pos))
+            .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_key))
             .map(|(i, _)| i)
             .collect();
 
@@ -75,7 +75,8 @@ fn main() -> std::io::Result<()> {
                 .sum::<u32>()
                 / contributors.len() as u32;
 
-            writer.write_all(&min_pos.to_le_bytes()).unwrap();
+            writer.write_all(&[min_key.0]).unwrap();
+            writer.write_all(&min_key.1.to_le_bytes()).unwrap();
             writer.write_all(&mean_g.to_le_bytes()).unwrap();
             writer.write_all(&mean_other.to_le_bytes()).unwrap();
         }
