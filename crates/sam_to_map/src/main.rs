@@ -51,6 +51,10 @@ fn main() -> std::io::Result<()> {
         .filter(|line| !line.starts_with("@"))
         .for_each(|line| {
             let fields: Vec<&str> = line.split('\t').collect();
+            let chr = fields[2];
+            let Some(&chr_id) = chr_lookup.get(&chr) else {
+                return;
+            };
             let start = fields[3].parse::<u32>().unwrap();
             let cigar = fields[5];
             let sequence = fields[9].as_bytes();

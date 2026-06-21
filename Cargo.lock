@@ -175,6 +175,7 @@ dependencies = [
 name = "sam_to_map"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "either",
 ]
 
