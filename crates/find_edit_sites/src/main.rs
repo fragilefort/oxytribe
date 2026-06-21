@@ -35,7 +35,7 @@ fn main() -> std::io::Result<()> {
     //// SAFETY: ctrl file is written once by sam_to_map and not modified
     let ctrl_map = unsafe { Mmap::map(&ctrlf)? };
     let pos_records = std::iter::from_fn(move || {
-        let mut buf = [0u8; 12];
+        let mut buf = [0u8; 13];
         match rnabuf.read_exact(&mut buf) {
             Ok(()) => Some(buf),
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => None,
@@ -43,13 +43,14 @@ fn main() -> std::io::Result<()> {
         }
     });
     let pos_records = pos_records.map(|buf| {
-        let pos = u32::from_le_bytes(buf[..4].try_into().unwrap());
-        let g_count = u32::from_le_bytes(buf[4..8].try_into().unwrap());
-        let other = u32::from_le_bytes(buf[8..12].try_into().unwrap());
-        (pos, g_count, other)
+        let chr_id = u8::from_le_bytes(buf[..1].try_into().unwrap());
+        let pos = u32::from_le_bytes(buf[1..5].try_into().unwrap());
+        let g_count = u32::from_le_bytes(buf[5..9].try_into().unwrap());
+        let other = u32::from_le_bytes(buf[9..13].try_into().unwrap());
+        (chr_id, pos, g_count, other)
     });
-    pos_records.for_each(|(pos, rna_g, rna_other)| {
-        if let Some((ctrl_g, ctrl_other)) = lookup_control(&ctrl_map, pos) {
+    pos_records.for_each(|(chr_id, pos, rna_g, rna_other)| {
+        if let Some((ctrl_g, ctrl_other)) = lookup_control(&ctrl_map, chr_id, pos) {
             let rna_tot = rna_g + rna_other;
             let ctrl_total = ctrl_g + ctrl_other;
             let rna_edit_frac = rna_g as f64 / rna_tot as f64;
@@ -62,6 +63,7 @@ fn main() -> std::io::Result<()> {
                 && rna_tot >= cli.min_rna_coverage
                 && rna_edit_frac >= cli.min_rna_edit_frac
             {
+                writer.write_all(&chr_id.to_le_bytes()).unwrap();
                 writer.write_all(&pos.to_le_bytes()).unwrap();
                 writer.write_all(&rna_g.to_le_bytes()).unwrap();
                 writer.write_all(&ctrl_g.to_le_bytes()).unwrap();
@@ -72,32 +74,35 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn lookup_control(ctrl_mmap: &[u8], target: u32) -> Option<(u32, u32)> {
-    let n_records = ctrl_mmap.len() / 12;
+fn lookup_control(ctrl_mmap: &[u8], target_chr: u8, target_pos: u32) -> Option<(u32, u32)> {
+    let n_records = ctrl_mmap.len() / 13;
     if n_records == 0 {
         return None;
     }
-
     let mut low = 0;
     let mut high = n_records - 1;
-
     while low <= high {
         let mid = (low + high) / 2;
-        let offset = mid * 12;
+        let offset = mid * 13;
+        let chr_id = ctrl_mmap[offset];
+        let pos = u32::from_le_bytes(ctrl_mmap[offset + 1..offset + 5].try_into().unwrap());
 
-        let pos = u32::from_le_bytes(ctrl_mmap[offset..offset + 4].try_into().unwrap());
-
-        if pos == target {
-            let g = u32::from_le_bytes(ctrl_mmap[offset + 4..offset + 8].try_into().unwrap());
-            let other = u32::from_le_bytes(ctrl_mmap[offset + 8..offset + 12].try_into().unwrap());
-            return Some((g, other));
-        } else if target < pos {
-            if mid == 0 {
-                return None;
+        match (chr_id, pos).cmp(&(target_chr, target_pos)) {
+            std::cmp::Ordering::Equal => {
+                let g = u32::from_le_bytes(ctrl_mmap[offset + 5..offset + 9].try_into().unwrap());
+                let other =
+                    u32::from_le_bytes(ctrl_mmap[offset + 9..offset + 13].try_into().unwrap());
+                return Some((g, other));
             }
-            high = mid - 1;
-        } else {
-            low = mid + 1;
+            std::cmp::Ordering::Greater => {
+                if mid == 0 {
+                    return None;
+                }
+                high = mid - 1;
+            }
+            std::cmp::Ordering::Less => {
+                low = mid + 1;
+            }
         }
     }
     None
