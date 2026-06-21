@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 either = "1"
+clap = { version = "4", features = ["derive"] }

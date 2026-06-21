@@ -1,8 +1,10 @@
+use clap::Parser;
 use either::Either;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader, BufWriter};
+use std::path::PathBuf;
 
 static CIGAR_TABLE: [(u8, u8); 128] = {
     let mut table = [(0u8, 0u8); 128];
@@ -18,16 +20,30 @@ static CIGAR_TABLE: [(u8, u8); 128] = {
     table
 };
 
+#[derive(Parser)]
+struct Cli {
+    input_sam: PathBuf,
+    output_path: PathBuf,
+    chr_list_path: PathBuf,
+}
+
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} <input.sam> <output.bin>", args[0]);
-        std::process::exit(1);
-    }
-    let input_path = &args[1];
-    let output_path = &args[2];
+    let cli = Cli::parse();
+
+    let chr_names: Vec<String> = std::fs::read_to_string(&cli.chr_list_path)
+        .unwrap()
+        .lines()
+        .map(|s| s.to_string())
+        .collect();
+
+    let chr_lookup: HashMap<&str, u8> = chr_names
+        .iter()
+        .enumerate()
+        .map(|(i, name)| (name.as_str(), i as u8))
+        .collect();
+
     let mut map: HashMap<u32, (u32, u32)> = HashMap::with_capacity(1_000_000);
-    let f = File::open(input_path).expect("Couldn't open sam file");
+    let f = File::open(&cli.input_sam).expect("Couldn't open sam file");
     let reader = BufReader::new(f);
     reader
         .lines()
@@ -63,7 +79,7 @@ fn main() -> std::io::Result<()> {
     let mut entries: Vec<(u32, (u32, u32))> = map.into_iter().collect();
     entries.sort_by_key(|(pos, _)| *pos);
 
-    let outfile = File::create(output_path)?;
+    let outfile = File::create(&cli.output_path)?;
     let mut writer = BufWriter::new(outfile);
 
     for (pos, (g, other)) in entries {
