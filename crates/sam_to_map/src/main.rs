@@ -26,23 +26,6 @@ struct Cli {
     chr_list_path: PathBuf,
 }
 
-enum MdToken {
-    Matches(std::iter::Take<std::iter::Repeat<Option<u8>>>),
-    Deletion,
-    Mismatch(std::iter::Once<Option<u8>>),
-}
-
-impl Iterator for MdToken {
-    type Item = Option<u8>;
-    fn next(&mut self) -> Option<Option<u8>> {
-        match self {
-            MdToken::Matches(it) => it.next(),
-            MdToken::Deletion => None,
-            MdToken::Mismatch(it) => it.next(),
-        }
-    }
-}
-
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
@@ -133,6 +116,23 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
             let (r, q) = CIGAR_TABLE[op];
             (len, r, q)
         })
+}
+
+enum MdToken {
+    Matches(std::iter::Take<std::iter::Repeat<Option<u8>>>),
+    Deletion,
+    Mismatch(std::iter::Once<Option<u8>>),
+}
+
+impl Iterator for MdToken {
+    type Item = Option<u8>;
+    fn next(&mut self) -> Option<Option<u8>> {
+        match self {
+            MdToken::Matches(it) => it.next(),
+            MdToken::Deletion => None,
+            MdToken::Mismatch(it) => it.next(),
+        }
+    }
 }
 
 fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> {
