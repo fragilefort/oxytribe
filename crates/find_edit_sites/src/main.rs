@@ -9,6 +9,7 @@ struct Cli {
     rna_path: PathBuf,
     control_path: PathBuf,
     output_path: PathBuf,
+    chr_list_path: PathBuf,
     #[arg(long, default_value_t = 9)]
     min_control_coverage: u32,
     /// Maximum allowed edit (G) fraction in the control sample (filters out SNPs)
@@ -26,11 +27,21 @@ struct Cli {
 
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
+    let chr_names: Vec<String> = std::fs::read_to_string(&cli.chr_list_path)
+        .unwrap()
+        .lines()
+        .map(|s| s.to_string())
+        .collect();
+
     let ctrlf = File::open(&cli.control_path)?;
     let rnaf = File::open(&cli.rna_path)?;
     let mut rnabuf = BufReader::new(&rnaf);
     let outfile = File::create(&cli.output_path)?;
     let mut writer = BufWriter::new(outfile);
+    writeln!(
+        writer,
+        "#chr\tstart\tend\trna_G\trna_total\tctrl_G\tctrl_total\trna_edit_frac"
+    )?;
     // Trust me bro
     //// SAFETY: ctrl file is written once by sam_to_map and not modified
     let ctrl_map = unsafe { Mmap::map(&ctrlf)? };
@@ -63,10 +74,20 @@ fn main() -> std::io::Result<()> {
                 && rna_tot >= cli.min_rna_coverage
                 && rna_edit_frac >= cli.min_rna_edit_frac
             {
-                writer.write_all(&chr_id.to_le_bytes()).unwrap();
-                writer.write_all(&pos.to_le_bytes()).unwrap();
-                writer.write_all(&rna_g.to_le_bytes()).unwrap();
-                writer.write_all(&ctrl_g.to_le_bytes()).unwrap();
+                let chr_name = &chr_names[chr_id as usize];
+                writeln!(
+                    writer,
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}",
+                    chr_name,
+                    pos,
+                    pos + 1,
+                    rna_g,
+                    rna_tot,
+                    ctrl_g,
+                    ctrl_total,
+                    rna_edit_frac
+                )
+                .unwrap();
             }
         }
     });
