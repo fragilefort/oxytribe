@@ -86,35 +86,35 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn current_pos(mmap: &[u8], pointer: usize) -> Option<u32> {
-    let offset = pointer * 12;
-    if offset + 12 > mmap.len() {
-        None // exhausted
+fn current_pos(mmap: &[u8], pointer: usize) -> Option<(u8, u32)> {
+    let offset = pointer * 13;
+    if offset + 13 > mmap.len() {
+        None
     } else {
-        Some(u32::from_le_bytes(
-            mmap[offset..offset + 4].try_into().unwrap(),
-        ))
+        let chr_id = mmap[offset];
+        let pos = u32::from_le_bytes(mmap[offset + 1..offset + 5].try_into().unwrap());
+        Some((chr_id, pos))
     }
 }
 
 fn get_g(mmap: &[u8], pointer: usize) -> Option<u32> {
-    let offset = pointer * 12;
-    if offset + 12 > mmap.len() {
+    let offset = pointer * 13;
+    if offset + 13 > mmap.len() {
         None
     } else {
         Some(u32::from_le_bytes(
-            mmap[offset + 4..offset + 8].try_into().unwrap(),
+            mmap[offset + 5..offset + 9].try_into().unwrap(),
         ))
     }
 }
 
 fn get_other(mmap: &[u8], pointer: usize) -> Option<u32> {
-    let offset = pointer * 12;
-    if offset + 12 > mmap.len() {
+    let offset = pointer * 13;
+    if offset + 13 > mmap.len() {
         None
     } else {
         Some(u32::from_le_bytes(
-            mmap[offset + 8..offset + 12].try_into().unwrap(),
+            mmap[offset + 9..offset + 13].try_into().unwrap(),
         ))
     }
 }
