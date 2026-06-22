@@ -57,7 +57,7 @@ fn main() -> std::io::Result<()> {
             let start = fields[3].parse::<u32>().unwrap();
             let cigar = fields[5];
             let sequence = fields[9].as_bytes();
-            let md_tag = extract_md_tag(&fields).unwrap_or("");
+            let md_tag = extract_md_tag(&fields).unwrap();
             let cigar_per_base = parse_cigar(cigar)
                 .flat_map(|(len, r, q)| std::iter::repeat((r, q)).take(len as usize));
             let mut ref_pos = start;
