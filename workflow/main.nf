@@ -16,7 +16,7 @@ workflow {
             def meta = [id: row.sample, single_end: row.fastq2 == '']
             def files = meta.single_end
                 ? [file(row.fastq1)]
-                : [file(row.fastq1), file(row.fastq2)]
+                : [file(row.fastq_1), file(row.fastq_2)]
             [meta, files]
         }
 
