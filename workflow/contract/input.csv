@@ -1,0 +1,10 @@
+sample,fastq_1,fastq_2,condition
+DS1_rep1,/path/to/DS1_rep1_R1.fq,/path/to/DS1_rep1_R2.fq,conditionA
+DS1_rep2,/path/to/DS1_rep2_R1.fq,/path/to/DS1_rep2_R2.fq,conditionA
+DS1_rep3,/path/to/DS1_rep3_R1.fq,/path/to/DS1_rep3_R2.fq,conditionA
+DS2_rep1,/path/to/DS2_rep1_R1.fq,/path/to/DS2_rep1_R2.fq,conditionB
+DS2_rep2,/path/to/DS2_rep2_R1.fq,/path/to/DS2_rep2_R2.fq,conditionB
+DS2_rep3,/path/to/DS2_rep3_R1.fq,/path/to/DS2_rep3_R2.fq,conditionB
+DS3_rep1,/path/to/DS3_rep1_R1.fq,/path/to/DS3_rep1_R2.fq,conditionC
+DS3_rep2,/path/to/DS3_rep2_R1.fq,/path/to/DS3_rep2_R2.fq,conditionC
+DS3_rep3,/path/to/DS3_rep3_R1.fq,/path/to/DS3_rep3_R2.fq,conditionC
