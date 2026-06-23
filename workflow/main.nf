@@ -13,7 +13,7 @@ include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main
 workflow {
 
     main:
-    reads_ch = channel.fromPath(params.input_path)
+    reads_ch = channel.fromPath(params.input_csv)
         .splitCsv(header: true)
         .map { row ->
             def meta = [id: row.sample, single_end: row.fastq2 == '']
