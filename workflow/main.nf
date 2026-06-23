@@ -29,9 +29,9 @@ workflow {
 
 output {
     fastqc_html {
-        path "fastqc"
+        path "fastqc/html"
     }
     fastqc_zip {
-        path "fastqc"
+        path "fastqc/zip"
     }
 }
