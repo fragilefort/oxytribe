@@ -25,7 +25,9 @@ workflow {
     FASTQC(reads_ch)
 
     reffasta_ch = channel.fromPath(params.ref_fasta)
+        .map { fasta -> [[id: 'genome'], fasta] }
     refgtf_ch = channel.fromPath(params.ref_gtf)
+        .map { gtf -> [[id: 'genome'], gtf] }
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
     publish:
