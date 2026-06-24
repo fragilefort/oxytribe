@@ -6,11 +6,13 @@ params {
     ref_fasta: Path
     ref_gtf: Path
     star_ignore_sjdbgtf: Boolean
+    chr_list: Path
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
+include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
 
 workflow {
 
@@ -43,12 +45,18 @@ workflow {
         STAR_ALIGN.out.log_progress,
     )
 
+    SAM_TO_MAP(
+        STAR_ALIGN.out.sam,
+        params.chr_list,
+    )
+
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
     star_index = STAR_GENOMEGENERATE.out.index
     star_align_log = star_all_logs
     sam_files = STAR_ALIGN.out.sam
+    sam_maps = SAM_TO_MAP.out.map
 }
 
 output {
@@ -66,5 +74,8 @@ output {
     }
     sam_files {
         path "star/align/sam"
+    }
+    sam_maps {
+        path "temple/map"
     }
 }
