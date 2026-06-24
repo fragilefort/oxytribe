@@ -9,6 +9,7 @@ params {
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
+include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 
 workflow {
 
@@ -30,10 +31,22 @@ workflow {
         .map { gtf -> [[id: 'genome'], gtf] }
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
+    STAR_ALIGN(
+        reads_ch,
+        STAR_GENOMEGENERATE.out.index,
+        refgtf_ch,
+    )
+    star_all_logs = STAR_ALIGN.out.log_final.mix(
+        STAR_ALIGN.out.log_out,
+        STAR_ALIGN.out.log_progress,
+    )
+
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
     star_index = STAR_GENOMEGENERATE.out.index
+    star_align_log = star_all_logs
+    sam_files = STAR_ALIGN.out.sam
 }
 
 output {
@@ -45,5 +58,11 @@ output {
     }
     star_index {
         path "star/index"
+    }
+    star_align_log {
+        path "star/align/log"
+    }
+    sam_files {
+        path "star/align/sam"
     }
 }
