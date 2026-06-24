@@ -18,7 +18,7 @@ workflow {
     reads_ch = channel.fromPath(params.input_csv)
         .splitCsv(header: true)
         .map { row ->
-            def meta = [id: row.sample, single_end: row.fastq2 == '']
+            def meta = [id: row.sample, single_end: row.fastq_2 == '']
             def files = meta.single_end
                 ? [file(row.fastq1)]
                 : [file(row.fastq_1), file(row.fastq_2)]
