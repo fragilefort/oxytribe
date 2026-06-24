@@ -5,6 +5,7 @@ params {
     input_csv: Path
     ref_fasta: Path
     ref_gtf: Path
+    star_ignore_sjdbgtf: Boolean
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
@@ -35,6 +36,7 @@ workflow {
         reads_ch,
         STAR_GENOMEGENERATE.out.index,
         refgtf_ch,
+        params.star_ignore_sjdbgtf ?: false,
     )
     star_all_logs = STAR_ALIGN.out.log_final.mix(
         STAR_ALIGN.out.log_out,
