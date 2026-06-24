@@ -34,8 +34,8 @@ workflow {
 
     STAR_ALIGN(
         reads_ch,
-        STAR_GENOMEGENERATE.out.index,
-        refgtf_ch,
+        STAR_GENOMEGENERATE.out.index.first(),
+        refgtf_ch.first(),
         params.star_ignore_sjdbgtf ?: false,
     )
     star_all_logs = STAR_ALIGN.out.log_final.mix(
