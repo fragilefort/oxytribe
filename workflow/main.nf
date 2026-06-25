@@ -90,6 +90,6 @@ output {
         path "temple/map"
     }
     combined_maps {
-        path "temple/combined_maps"
+        path "temple/combined_maps/${params.combination_mode}"
     }
 }
