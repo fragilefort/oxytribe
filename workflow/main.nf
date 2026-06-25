@@ -89,10 +89,11 @@ workflow {
             [control, treatment, treatment_bin]
         }
         .view { it -> "AFTER MAP1: ${it}" }
-        .join(
-            control_bins.view { it -> "CTRL: ${it}" }
+        .combine(
+            control_bins.view { it -> "CTRL: ${it}" },
+            by: 0
         )
-        .view { it -> "AFTER JOIN2: ${it}" }
+        .view { it -> "AFTER COMBINE: ${it}" }
         .map { control, treatment, treatment_bin, control_bin ->
             [[id: "${treatment}_vs_${control}"], treatment_bin, control_bin]
         }
