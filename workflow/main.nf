@@ -8,6 +8,14 @@ params {
     star_ignore_sjdbgtf: Boolean
     chr_list: Path
     combination_mode: String
+    comparisons_csv: Path
+    umi: Boolean
+    outdir: Path
+    min_control_coverage: Integer
+    max_control_edit_frac: Double
+    min_control_non_g_frac: Double
+    min_rna_coverage: Integer
+    min_rna_edit_frac: Double
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
