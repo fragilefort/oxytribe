@@ -9,8 +9,6 @@ params {
     chr_list: Path
     combination_mode: String
     comparisons_csv: Path
-    umi: Boolean
-    outdir: Path
     min_control_coverage: Integer
     max_control_edit_frac: Double
     min_control_non_g_frac: Double
