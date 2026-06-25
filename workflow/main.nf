@@ -69,8 +69,8 @@ workflow {
     )
 
     // combined_bins_ch: [condition, bin]
-    treatment_bins = COMBINE_EDIT_SITES.out.map()
-    control_bins = COMBINE_EDIT_SITES.out.map()
+    treatment_bins = COMBINE_EDIT_SITES.out.map { it -> it }
+    control_bins = COMBINE_EDIT_SITES.out.map { it -> it }
 
     comparisons_ch = channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
