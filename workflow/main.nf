@@ -10,10 +10,10 @@ params {
     combination_mode: String
     comparisons_csv: Path
     min_control_coverage: Integer
-    max_control_edit_frac: Double
-    min_control_non_g_frac: Double
+    max_control_edit_frac: BigDecimal
+    min_control_non_g_frac: BigDecimal
     min_rna_coverage: Integer
-    min_rna_edit_frac: Double
+    min_rna_edit_frac: BigDecimal
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
