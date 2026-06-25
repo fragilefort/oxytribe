@@ -23,6 +23,7 @@ include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
 include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
+include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
 
 workflow {
 
@@ -68,6 +69,34 @@ workflow {
         params.combination_mode,
     )
 
+    // combined_bins_ch: [condition, bin]
+    treatment_bins = COMBINE_EDIT_SITES.out
+    control_bins = COMBINE_EDIT_SITES.out
+
+    comparisons_ch = channel.fromPath(params.comparisons_csv)
+        .splitCsv(header: true)
+        .map { row -> [row.treatment, row.control] }
+
+    // join treatment bin
+    comparisons_ch
+        .join(treatment_bins)
+        .map { treatment, control, treatment_bin -> [control, treatment, treatment_bin] }
+        .join(control_bins)
+        .map { control, treatment, treatment_bin, control_bin ->
+            [[id: "${treatment}_vs_${control}"], treatment_bin, control_bin]
+        }
+        .set { find_edit_sites_ch }
+
+    FIND_EDIT_SITES(
+        find_edit_sites_ch,
+        params.chr_list,
+        params.min_control_coverage,
+        params.max_control_edit_frac,
+        params.min_control_non_g_frac,
+        params.min_rna_coverage,
+        params.min_rna_edit_frac,
+    )
+
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
@@ -76,6 +105,7 @@ workflow {
     sam_files = STAR_ALIGN.out.sam
     sam_maps = SAM_TO_MAP.out.map
     combined_maps = COMBINE_EDIT_SITES.out
+    edit_sites_tsv = FIND_EDIT_SITES.out
 }
 
 output {
@@ -99,5 +129,8 @@ output {
     }
     combined_maps {
         path "temple/combined_maps/${params.combination_mode}"
+    }
+    edit_sites_tsv {
+        path "temple/filtered_edit_sites"
     }
 }
