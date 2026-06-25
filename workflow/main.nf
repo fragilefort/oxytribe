@@ -67,19 +67,21 @@ workflow {
         params.combination_mode,
     )
 
-    // combined_bins_ch: [condition, bin]
-    treatment_bins = COMBINE_EDIT_SITES.out
-    control_bins = COMBINE_EDIT_SITES.out
+    treatment_bins = COMBINE_EDIT_SITES.out.view { it -> "TREATMENT_BIN EMITTED: ${it}" }
+    control_bins = COMBINE_EDIT_SITES.out.view { it -> "CONTROL_BIN EMITTED: ${it}" }
 
     comparisons_ch = channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
         .map { row -> [row.treatment, row.control] }
+        .view { it -> "CSV ROW EMITTED: ${it}" }
 
     // join treatment bin
     comparisons_ch
         .join(treatment_bins)
+        .view { it -> "AFTER FIRST JOIN: ${it}" }
         .map { treatment, control, treatment_bin -> [control, treatment, treatment_bin] }
         .join(control_bins)
+        .view { it -> "AFTER SECOND JOIN: ${it}" }
         .map { control, treatment, treatment_bin, control_bin ->
             [[id: "${treatment}_vs_${control}"], treatment_bin, control_bin]
         }
