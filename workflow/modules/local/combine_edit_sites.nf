@@ -1,6 +1,8 @@
 #!/usr/bin/env nextflow
 
 process COMBINE_EDIT_SITES {
+    tag "${condition}"
+
     input:
     tuple val(condition), path(bins)
     val mode

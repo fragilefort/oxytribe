@@ -1,6 +1,8 @@
 #!/usr/bin/env nextflow
 
 process SAM_TO_MAP {
+    tag "${meta.id}"
+
     input:
     tuple val(meta), path(sam)
     path chr_list

@@ -1,6 +1,8 @@
 #!/usr/bin/env nextflow
 
 process FIND_EDIT_SITES {
+    tag "${meta.id}"
+
     input:
     tuple val(meta), path(rna_bin), path(ctrl_bin)
     path chr_list
