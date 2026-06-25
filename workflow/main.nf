@@ -73,31 +73,18 @@ workflow {
         .splitCsv(header: true)
         .map { row -> [row.treatment, row.control] }
 
-    // join treatment bin
-    COMBINE_EDIT_SITES.out.view { it -> "COMBINED: ${it}" }
-
     treatment_bins = COMBINE_EDIT_SITES.out
     control_bins = COMBINE_EDIT_SITES.out
 
     comparisons_ch
-        .view { it -> "CMP: ${it}" }
-        .join(
-            treatment_bins.view { it -> "TRT: ${it}" }
-        )
-        .view { it -> "AFTER JOIN1: ${it}" }
+        .join(treatment_bins)
         .map { treatment, control, treatment_bin ->
             [control, treatment, treatment_bin]
         }
-        .view { it -> "AFTER MAP1: ${it}" }
-        .combine(
-            control_bins.view { it -> "CTRL: ${it}" },
-            by: 0
-        )
-        .view { it -> "AFTER COMBINE: ${it}" }
+        .combine(control_bins, by: 0)
         .map { control, treatment, treatment_bin, control_bin ->
             [[id: "${treatment}_vs_${control}"], treatment_bin, control_bin]
         }
-        .view { it -> "FINAL: ${it}" }
         .set { find_edit_sites_ch }
 
     FIND_EDIT_SITES(
