@@ -14,6 +14,7 @@ include { FASTQC } from './modules/nf-core/fastqc/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
+include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
 
 workflow {
 
@@ -54,6 +55,10 @@ workflow {
     grouped_bins = SAM_TO_MAP.out.map
         .map { meta, bin -> [meta.condition, bin] }
         .groupTuple()
+    COMBINE_EDIT_SITES(
+        grouped_bins,
+        params.combination_mode,
+    )
 
     publish:
     fastqc_html = FASTQC.out.html
@@ -62,6 +67,7 @@ workflow {
     star_align_log = star_all_logs
     sam_files = STAR_ALIGN.out.sam
     sam_maps = SAM_TO_MAP.out.map
+    combined_maps = COMBINE_EDIT_SITES.out
 }
 
 output {
@@ -82,5 +88,8 @@ output {
     }
     sam_maps {
         path "temple/map"
+    }
+    combined_maps {
+        path "temple/combined_maps"
     }
 }
