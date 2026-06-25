@@ -1,11 +1,16 @@
 # oxytribe
 This is an attempt to improve the HyperTRIBE software by moving some parts from Perl to Rust and Python.
 ## TODO
-- Converting sam_to_matrix.pl to Rust
-- Decide if we will keep the local database (Surely not contacting with it in Perl)
-- Decide which modules will be python and which will be using Rust
-- Wrap the workflow with a nextflow
-- Delete the modules that already exists in nf-core
+[x] Converting sam_to_matrix.pl to Rust
+[x] Using a simpler approach without Database
+[x] All the processes until the final tsv file is either in nf or in Rust
+[x] Wrap the workflow with a nextflow
+[x] Delete the modules that already exists in nf-core
+[] Annotate the editing sites in the tsv file
+[] Containerize the pixi enviroment
+[] Update the documentation for installation and usage
+[] Testing and benchmarking
+
 # HyperTRIBE
 HyperTRIBE is a technique used for the identification of the targets of RNA binding proteins (RBP) in vivo. This is an improved version of a previously developed technique called TRIBE (Targets of RNA-binding proteins Identified By Editing).
 
