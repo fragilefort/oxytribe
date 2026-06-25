@@ -7,6 +7,7 @@ params {
     ref_gtf: Path
     star_ignore_sjdbgtf: Boolean
     chr_list: Path
+    combination_mode: String
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
@@ -20,7 +21,7 @@ workflow {
     reads_ch = channel.fromPath(params.input_csv)
         .splitCsv(header: true)
         .map { row ->
-            def meta = [id: row.sample, single_end: row.fastq_2 == '']
+            def meta = [id: row.sample, single_end: row.fastq_2 == '', condition: row.condition]
             def files = meta.single_end
                 ? [file(row.fastq_1)]
                 : [file(row.fastq_1), file(row.fastq_2)]
@@ -49,6 +50,10 @@ workflow {
         STAR_ALIGN.out.sam,
         params.chr_list,
     )
+
+    grouped_bins = SAM_TO_MAP.out.map
+        .map { meta, bin -> [meta.condition, bin] }
+        .groupTuple()
 
     publish:
     fastqc_html = FASTQC.out.html
