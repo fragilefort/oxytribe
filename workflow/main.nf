@@ -62,14 +62,15 @@ workflow {
     grouped_bins = SAM_TO_MAP.out.map
         .map { meta, bin -> [meta.condition, bin] }
         .groupTuple()
+
     COMBINE_EDIT_SITES(
         grouped_bins,
         params.combination_mode,
     )
 
     // combined_bins_ch: [condition, bin]
-    treatment_bins = COMBINE_EDIT_SITES.out
-    control_bins = COMBINE_EDIT_SITES.out
+    treatment_bins = COMBINE_EDIT_SITES.out.map()
+    control_bins = COMBINE_EDIT_SITES.out.map()
 
     comparisons_ch = channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
