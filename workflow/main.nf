@@ -68,7 +68,7 @@ workflow {
         params.combination_mode,
     )
 
-    // combined_bins_ch: [condition, bin]
+    // comparisons_ch: [treatment, control]
     comparisons_ch = channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
         .map { row -> [row.treatment, row.control] }
