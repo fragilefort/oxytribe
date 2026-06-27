@@ -22,6 +22,7 @@ include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
 include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
 include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
+include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
 
 workflow {
 
