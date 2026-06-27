@@ -23,6 +23,7 @@ include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
 include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
 include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
+include { FAI_TO_GENOME_FILES } from './modules/local/fai_to_genome_files.nf'
 
 workflow {
 
