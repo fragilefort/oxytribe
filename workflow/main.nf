@@ -99,7 +99,10 @@ workflow {
         params.min_rna_edit_frac,
     )
 
-    SAMTOOLS_FAIDX(reffasta_ch, true)
+    SAMTOOLS_FAIDX(
+        reffasta_ch.map { meta, fasta -> [meta, fasta, []] },
+        true,
+    )
     BEDTOOLS_INTERSECT(
         FIND_EDIT_SITES.out.combine(refgtf_ch.map { _meta, gtf -> gtf }).map { meta, tsv, gtf -> [meta, tsv, gtf] },
         SAMTOOLS_FAIDX.out.sizes.first(),
