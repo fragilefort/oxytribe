@@ -23,7 +23,7 @@ include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
 include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
 include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
-include { FAI_TO_GENOME_FILES } from './modules/local/fai_to_genome_files.nf'
+include { SAMTOOLS_FAIDX } from './modules/nf-core/samtools/faidx/main.nf'
 
 workflow {
 
@@ -99,6 +99,12 @@ workflow {
         params.min_rna_edit_frac,
     )
 
+    SAMTOOLS_FAIDX(reffasta_ch, true)
+    BEDTOOLS_INTERSECT(
+        FIND_EDIT_SITES.out.combine(refgtf_ch.map { _meta, gtf -> gtf }).map { meta, tsv, gtf -> [meta, tsv, gtf] },
+        SAMTOOLS_FAIDX.out.sizes.first(),
+    )
+
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
@@ -108,6 +114,7 @@ workflow {
     sam_maps = SAM_TO_MAP.out.map
     combined_maps = COMBINE_EDIT_SITES.out
     edit_sites_tsv = FIND_EDIT_SITES.out
+    annotated_tsv = BEDTOOLS_INTERSECT.out.intersect
 }
 
 output {
@@ -134,5 +141,8 @@ output {
     }
     edit_sites_tsv {
         path "temple/filtered_edit_sites"
+    }
+    annotated_tsv {
+        path "temple/annotated_edit_sites"
     }
 }
