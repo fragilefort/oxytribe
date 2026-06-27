@@ -8,7 +8,8 @@ This is an attempt to improve the HyperTRIBE software by moving some parts from 
 - [x] All the processes until the final TSV file are either in Nextflow or Rust
 - [x] Wrap the workflow with Nextflow
 - [x] Delete the modules that already exist in nf-core
-- [ ] Annotate the editing sites in the TSV file
+- [x] Annotate the editing sites in the TSV file
+- [ ] Add an R script for top edited genes with threshold like 5% and 1% and some stats
 - [ ] Containerize the Pixi environment
 - [ ] Update the documentation for installation and usage
 - [ ] Testing and benchmarking
