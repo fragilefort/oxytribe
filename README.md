@@ -10,6 +10,9 @@ This is an attempt to improve the HyperTRIBE software by moving some parts from 
 - [x] Delete the modules that already exist in nf-core
 - [x] Annotate the editing sites in the TSV file
 - [ ] Add an R script for top edited genes with threshold like 5% and 1% and some stats
+- [ ] Trimming process 
+- [ ] Add use UMI extract process 
+- [ ] USE UMI dedup
 - [ ] Containerize the Pixi environment
 - [ ] Update the documentation for installation and usage
 - [ ] Testing and benchmarking
