@@ -14,6 +14,7 @@ params {
     min_control_non_g_frac: BigDecimal
     min_rna_coverage: Integer
     min_rna_edit_frac: BigDecimal
+    edit_threshold: BigDecimal
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
@@ -24,6 +25,7 @@ include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
 include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
 include { SAMTOOLS_FAIDX } from './modules/nf-core/samtools/faidx/main.nf'
+include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites.nf'
 
 workflow {
 
@@ -108,6 +110,11 @@ workflow {
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
+    SUMMARIZE_EDIT_SITES(
+        BEDTOOLS_INTERSECT.out.intersect,
+        params.edit_threshold,
+    )
+
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
@@ -118,6 +125,7 @@ workflow {
     combined_maps = COMBINE_EDIT_SITES.out
     edit_sites_tsv = FIND_EDIT_SITES.out
     annotated_tsv = BEDTOOLS_INTERSECT.out.intersect
+    summarized_tsv = SUMMARIZE_EDIT_SITES.out
 }
 
 output {
@@ -147,5 +155,8 @@ output {
     }
     annotated_tsv {
         path "temple/annotated_edit_sites"
+    }
+    summarized_tsv {
+        path "temple/summarized_edit_sites/${params.edit_threshold}"
     }
 }
