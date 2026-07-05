@@ -100,7 +100,7 @@ summarize_transcript <- function(d) {
     # editing percentage: sum(G) / sum(G + other) across all sites
     total_G <- sum(d$rna_G)
     total_reads <- sum(d$rna_total)
-    edit_pct <- if (total_reads > 0) total_G / total_reads else 0
+    edit_pct <- if (total_reads > 0) round(total_G / total_reads, 4) else 0
 
     # edit sites as "chr:pos:edit_frac" comma separated for easy parsing
     sites <- paste(
@@ -119,8 +119,6 @@ summarize_transcript <- function(d) {
         edit_sites        = sites
     )
 }
-
-cat("Summarizing per transcript...\n")
 
 result <- dt_dedup[
     !is.na(transcript_id),
@@ -143,6 +141,20 @@ setcolorder(result, c(
 ))
 
 # sort by editing percentage descending
-result <- result[order(-editing_pct)]
+result <- result[order(gene_name, -editing_pct, transcript_id)]
 result <- result[editing_pct >= edit_threshold]
 fwrite(result, output_path, sep = "\t", quote = FALSE)
+
+gene_result <- result[, .(
+    n_transcripts   = .N,
+    chr             = chr[1],
+    strand          = strand[1],
+    n_edit_sites    = sum(n_edit_sites),
+    total_rna_G     = sum(total_rna_G),
+    total_rna_reads = sum(total_rna_reads),
+    editing_pct     = round(sum(total_rna_G) / sum(total_rna_reads), 4),
+    edit_sites      = paste(unique(unlist(strsplit(edit_sites, ","))), collapse = ",")
+), by = gene_name][order(gene_name, -editing_pct)]
+
+gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
+fwrite(gene_result, gene_output, sep = "\t", quote = FALSE)
