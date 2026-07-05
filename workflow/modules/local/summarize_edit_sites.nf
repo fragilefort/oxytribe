@@ -8,7 +8,7 @@ process SUMMARIZE_EDIT_SITES {
     val threshold
 
     output:
-    tuple val(meta), path("${meta.id}_summary.tsv")
+    tuple val(meta), path("${meta.id}_summary.tsv"), path("${meta.id}_summary_gene.tsv")
 
     script:
     """
