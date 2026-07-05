@@ -154,7 +154,7 @@ gene_result <- result[, .(
     total_rna_reads = sum(total_rna_reads),
     editing_pct     = round(sum(total_rna_G) / sum(total_rna_reads), 4),
     edit_sites      = paste(unique(unlist(strsplit(edit_sites, ","))), collapse = ",")
-), by = gene_name][order(gene_name, -editing_pct)]
+), by = gene_name][order(-editing_pct)]
 
 gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 fwrite(gene_result, gene_output, sep = "\t", quote = FALSE)
