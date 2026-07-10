@@ -112,7 +112,11 @@ workflow {
         false,
     )
 
-    SAMTOOLS_SORT(routed_bam.markdup)
+    SAMTOOLS_SORT(
+        routed_bam.markdup,
+        [[], [], []],
+        '',
+    )
     SAMTOOLS_MARKDUP(
         SAMTOOLS_SORT.out.bam,
         [[], [], []],
