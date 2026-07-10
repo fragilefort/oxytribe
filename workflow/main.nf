@@ -108,7 +108,8 @@ workflow {
 
     SAMTOOLS_INDEX(routed_bam.umi)
     UMITOOLS_DEDUP(
-        routed_bam.umi.join(SAMTOOLS_INDEX.out.index)
+        routed_bam.umi.join(SAMTOOLS_INDEX.out.index),
+        false,
     )
 
     SAMTOOLS_SORT(routed_bam.markdup)
