@@ -38,6 +38,7 @@ params {
     edit_threshold: BigDecimal
     umi: Boolean
     skip_umiextract: Boolean
+    skip_trimming: Boolean
 }
 
 
@@ -67,8 +68,17 @@ workflow {
         .set { routed_reads_ch }
 
     UMITOOLS_EXTRACT(routed_reads_ch.extract)
-    CUTADAPT(
-        UMITOOLS_EXTRACT.out.reads.mix(routed_reads_ch.bypass)
+    post_umi_ch = UMITOOLS_EXTRACT.out.reads.mix(routed_reads_ch.bypass)
+    post_umi_ch
+        .branch {
+            trim: !params.skip_trimming
+            bypass: true
+        }
+        .set { routed_trim_ch }
+
+    CUTADAPT(routed_trim_ch.trim)
+    align_input_ch = CUTADAPT.out.reads.mix(
+        routed_trim_ch.bypass
     )
 
     FASTQC_TRIMMED(CUTADAPT.out.reads)
@@ -81,7 +91,7 @@ workflow {
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
     STAR_ALIGN(
-        CUTADAPT.out.reads,
+        align_input_ch,
         STAR_GENOMEGENERATE.out.index.first(),
         refgtf_ch.first(),
         params.star_ignore_sjdbgtf ?: false,
