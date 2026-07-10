@@ -15,9 +15,14 @@ params {
     min_rna_coverage: Integer
     min_rna_edit_frac: BigDecimal
     edit_threshold: BigDecimal
+    umi: Boolean
+    skip_umiextract: Boolean
 }
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
+include { FASTQC as FASTQC_TRIMMED } from './modules/nf-core/fastqc/main.nf'
+include { MULTIQC } from './modules/nf-core/multiqc/main.nf'
+include { UMITOOLS_EXTRACT } from './modules/nf-core/umitools/extract/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
@@ -26,6 +31,12 @@ include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
 include { SAMTOOLS_FAIDX } from './modules/nf-core/samtools/faidx/main.nf'
 include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites.nf'
+include { CUTADAPT } from './modules/nf-core/cutadapt/main.nf'
+include { UMITOOLS_DEDUP } from './modules/nf-core/umitools/dedup/main.nf'
+include { SAMTOOLS_SORT } from './modules/nf-core/samtools/sort/main.nf'
+include { SAMTOOLS_MARKDUP } from './modules/nf-core/samtools/markdup/main.nf'
+include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
+include { SAMTOOLS_VIEW } from './modules/nf-core/samtools/view/main.nf'
 
 workflow {
 
@@ -45,6 +56,17 @@ workflow {
         }
     FASTQC(reads_ch)
 
+    if (params.umi) {
+
+        UMITOOLS_EXTRACT(reads_ch)
+        trimming_input_ch = UMITOOLS_EXTRACT.out.reads
+    }
+    else {
+        trimming_input_ch = reads_ch
+    }
+    CUTADAPT(trimming_input_ch)
+    FASTQC_TRIMMED(CUTADAPT.out.reads)
+
     reffasta_ch = channel.fromPath(params.ref_fasta)
         .map { fasta -> [[id: 'genome'], fasta] }
     refgtf_ch = channel.fromPath(params.ref_gtf)
@@ -52,7 +74,7 @@ workflow {
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
     STAR_ALIGN(
-        reads_ch,
+        CUTADAPT.out.reads,
         STAR_GENOMEGENERATE.out.index.first(),
         refgtf_ch.first(),
         params.star_ignore_sjdbgtf ?: false,
@@ -61,9 +83,38 @@ workflow {
         STAR_ALIGN.out.log_out,
         STAR_ALIGN.out.log_progress,
     )
+    multiqc_files = FASTQC.out.zip
+        .mix(CUTADAPT.out.log)
+        .mix(star_all_logs)
+
+    multiqc_files = FASTQC.out.zip
+        .mix(FASTQC_TRIMMED.out.zip)
+        .mix(CUTADAPT.out.log)
+        .mix(star_all_logs)
+
+    if (params.umi) {
+        SAMTOOLS_INDEX(STAR_ALIGN.out.bam)
+        UMITOOLS_DEDUP(
+            STAR_ALIGN.out.bam.join(SAMTOOLS_INDEX.out.index)
+        )
+        dedup_bam_ch = UMITOOLS_DEDUP.out.bam
+    }
+    else {
+        SAMTOOLS_SORT(STAR_ALIGN.out.bam)
+        SAMTOOLS_MARKDUP(SAMTOOLS_SORT.out.bam)
+        dedup_bam_ch = SAMTOOLS_MARKDUP.out.bam
+    }
+
+    SAMTOOLS_VIEW(
+        dedup_bam_ch.map { meta, bam -> [meta, bam, []] },
+        [[], [], []],
+        [[], []],
+        [[], []],
+        [],
+    )
 
     SAM_TO_MAP(
-        STAR_ALIGN.out.sam,
+        SAMTOOLS_VIEW.out.sam,
         params.chr_list,
     )
 
