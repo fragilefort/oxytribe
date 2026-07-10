@@ -1,23 +1,6 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl = 2
 
-params {
-    input_csv: Path
-    ref_fasta: Path
-    ref_gtf: Path
-    star_ignore_sjdbgtf: Boolean
-    chr_list: Path
-    combination_mode: String
-    comparisons_csv: Path
-    min_control_coverage: Integer
-    max_control_edit_frac: BigDecimal
-    min_control_non_g_frac: BigDecimal
-    min_rna_coverage: Integer
-    min_rna_edit_frac: BigDecimal
-    edit_threshold: BigDecimal
-    umi: Boolean
-    skip_umiextract: Boolean
-}
 
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
 include { FASTQC as FASTQC_TRIMMED } from './modules/nf-core/fastqc/main.nf'
@@ -37,6 +20,26 @@ include { SAMTOOLS_SORT } from './modules/nf-core/samtools/sort/main.nf'
 include { SAMTOOLS_MARKDUP } from './modules/nf-core/samtools/markdup/main.nf'
 include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
 include { SAMTOOLS_VIEW } from './modules/nf-core/samtools/view/main.nf'
+
+
+params {
+    input_csv: Path
+    ref_fasta: Path
+    ref_gtf: Path
+    star_ignore_sjdbgtf: Boolean
+    chr_list: Path
+    combination_mode: String
+    comparisons_csv: Path
+    min_control_coverage: Integer
+    max_control_edit_frac: BigDecimal
+    min_control_non_g_frac: BigDecimal
+    min_rna_coverage: Integer
+    min_rna_edit_frac: BigDecimal
+    edit_threshold: BigDecimal
+    umi: Boolean
+    skip_umiextract: Boolean
+}
+
 
 workflow {
 
@@ -96,18 +99,22 @@ workflow {
         .mix(CUTADAPT.out.log)
         .mix(star_all_logs)
 
-    if (params.umi) {
-        SAMTOOLS_INDEX(STAR_ALIGN.out.bam)
-        UMITOOLS_DEDUP(
-            STAR_ALIGN.out.bam.join(SAMTOOLS_INDEX.out.index)
-        )
-        dedup_bam_ch = UMITOOLS_DEDUP.out.bam
-    }
-    else {
-        SAMTOOLS_SORT(STAR_ALIGN.out.bam)
-        SAMTOOLS_MARKDUP(SAMTOOLS_SORT.out.bam)
-        dedup_bam_ch = SAMTOOLS_MARKDUP.out.bam
-    }
+    STAR_ALIGN.out.bam
+        .branch {
+            umi: params.umi
+            markdup: true
+        }
+        .set { routed_bam }
+
+    SAMTOOLS_INDEX(routed_bam.umi)
+    UMITOOLS_DEDUP(
+        routed_bam.umi.join(SAMTOOLS_INDEX.out.index)
+    )
+
+    SAMTOOLS_SORT(routed_bam.markdup)
+    SAMTOOLS_MARKDUP(SAMTOOLS_SORT.out.bam)
+
+    dedup_bam_ch = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
 
     SAMTOOLS_VIEW(
         dedup_bam_ch.map { meta, bam -> [meta, bam, []] },
