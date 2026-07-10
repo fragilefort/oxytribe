@@ -33,7 +33,11 @@ workflow {
     reads_ch = channel.fromPath(params.input_csv)
         .splitCsv(header: true)
         .map { row ->
-            def meta = [id: row.sample, single_end: row.fastq_2 == '', condition: row.condition]
+            def meta = [
+                id: row.sample,
+                single_end: row.fastq_2 == '',
+                condition: row.condition,
+            ]
             def files = meta.single_end
                 ? [file(row.fastq_1)]
                 : [file(row.fastq_1), file(row.fastq_2)]
@@ -106,7 +110,9 @@ workflow {
         true,
     )
     BEDTOOLS_INTERSECT(
-        FIND_EDIT_SITES.out.combine(refgtf_ch.map { _meta, gtf -> gtf }).map { meta, tsv, gtf -> [meta, tsv, gtf] },
+        FIND_EDIT_SITES.out.combine(
+            refgtf_ch.map { _meta, gtf -> gtf }
+        ).map { meta, tsv, gtf -> [meta, tsv, gtf] },
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
