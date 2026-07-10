@@ -56,16 +56,20 @@ workflow {
         }
     FASTQC(reads_ch)
 
-    if (params.umi && !params.skip_umiextract) {
+    reads_ch
+        .branch {
+            extract: params.umi && !params.skip_umiextract
+            bypass: true
+        }
+        .set { routed_reads_ch }
 
-        UMITOOLS_EXTRACT(reads_ch)
-        trimming_input_ch = UMITOOLS_EXTRACT.out.reads
-    }
-    else {
-        trimming_input_ch = reads_ch
-    }
-    CUTADAPT(trimming_input_ch)
+    UMITOOLS_EXTRACT(routed_reads_ch.extract)
+    CUTADAPT(
+        UMITOOLS_EXTRACT.out.reads.mix(routed_reads_ch.bypass)
+    )
+
     FASTQC_TRIMMED(CUTADAPT.out.reads)
+
 
     reffasta_ch = channel.fromPath(params.ref_fasta)
         .map { fasta -> [[id: 'genome'], fasta] }
