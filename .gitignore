@@ -3,6 +3,7 @@
 !.pixi/config.toml
 .nextflow/
 .nf-core.yml
+*.sif
 
 
 # Added by cargo
