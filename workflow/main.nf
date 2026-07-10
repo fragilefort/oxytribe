@@ -56,7 +56,7 @@ workflow {
         }
     FASTQC(reads_ch)
 
-    if (params.umi) {
+    if (params.umi && !params.skip_umiextract) {
 
         UMITOOLS_EXTRACT(reads_ch)
         trimming_input_ch = UMITOOLS_EXTRACT.out.reads
