@@ -113,7 +113,10 @@ workflow {
     )
 
     SAMTOOLS_SORT(routed_bam.markdup)
-    SAMTOOLS_MARKDUP(SAMTOOLS_SORT.out.bam)
+    SAMTOOLS_MARKDUP(
+        SAMTOOLS_SORT.out.bam,
+        [[], [], []],
+    )
 
     dedup_bam_ch = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
 
