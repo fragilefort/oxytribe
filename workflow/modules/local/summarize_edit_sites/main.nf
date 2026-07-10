@@ -3,6 +3,7 @@
 process SUMMARIZE_EDIT_SITES {
     tag "${meta.id}"
 
+    conda "${moduleDir}/environment.yml"
     container "${workflow.containerEngine in ['singularity', 'apptainer']
         ? 'oras://ghcr.io/fragilefort/oxytribe-r@sha256:7fd2a3a37fc9401e89748115e9a9ed8baa093138445506802ce69d7d73c8ff2a'
         : 'ghcr.io/fragilefort/oxytribe-r@sha256:bc6d4009679fb3a3615b4fb095e272f7c5697e4ec0b15487de83c2430270b087'}"

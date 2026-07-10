@@ -1,0 +1,9 @@
+name: oxytribe-r
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4.2
+  - r-data.table
+  - r-purrr
+  - r-tibble
