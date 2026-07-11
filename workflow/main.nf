@@ -17,6 +17,7 @@ include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites/main
 include { CUTADAPT } from './modules/nf-core/cutadapt/main.nf'
 include { UMITOOLS_DEDUP } from './modules/nf-core/umitools/dedup/main.nf'
 include { SAMTOOLS_SORT } from './modules/nf-core/samtools/sort/main.nf'
+include { SAMTOOLS_FIXMATE } from './modules/nf-core/samtools/fixmate/main.nf'
 include { SAMTOOLS_MARKDUP } from './modules/nf-core/samtools/markdup/main.nf'
 include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
 include { SAMTOOLS_VIEW } from './modules/nf-core/samtools/view/main.nf'
@@ -121,7 +122,6 @@ workflow {
     MULTIQC(multiqc_input_ch)
 
     STAR_ALIGN.out.bam_sorted_aligned
-        .view { meta, bam -> "DEBUG bam_sorted_aligned: ${meta.id} -> ${bam}" }
         .branch {
             umi: params.umi
             markdup: true
@@ -134,8 +134,14 @@ workflow {
         false,
     )
 
+    SAMTOOLS_FIXMATE(routed_bam.markdup)
+    SAMTOOLS_SORT(
+        SAMTOOLS_FIXMATE.out.bam,
+        [[], [], []],
+        [],
+    )
     SAMTOOLS_MARKDUP(
-        routed_bam.markdup,
+        SAMTOOLS_SORT.out.bam,
         [[], [], []],
     )
 
