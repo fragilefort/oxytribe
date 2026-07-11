@@ -17,6 +17,7 @@ include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites/main
 include { CUTADAPT } from './modules/nf-core/cutadapt/main.nf'
 include { UMITOOLS_DEDUP } from './modules/nf-core/umitools/dedup/main.nf'
 include { SAMTOOLS_SORT } from './modules/nf-core/samtools/sort/main.nf'
+include { SAMTOOLS_SORT as SAMTOOLS_NAMESORT } from './modules/nf-core/samtools/sort/main.nf'
 include { SAMTOOLS_FIXMATE } from './modules/nf-core/samtools/fixmate/main.nf'
 include { SAMTOOLS_MARKDUP } from './modules/nf-core/samtools/markdup/main.nf'
 include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
@@ -134,7 +135,8 @@ workflow {
         false,
     )
 
-    SAMTOOLS_FIXMATE(routed_bam.markdup)
+    SAMTOOLS_NAMESORT(routed_bam.markdup)
+    SAMTOOLS_FIXMATE(SAMTOOLS_NAMESORT.out.bam)
     SAMTOOLS_SORT(
         SAMTOOLS_FIXMATE.out.bam,
         [[], [], []],
