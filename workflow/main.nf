@@ -109,7 +109,7 @@ workflow {
         .mix(CUTADAPT.out.log)
         .mix(star_all_logs)
 
-    STAR_ALIGN.out.bam
+    STAR_ALIGN.out.bam_sorted
         .branch {
             umi: params.umi
             markdup: true
@@ -122,13 +122,8 @@ workflow {
         false,
     )
 
-    SAMTOOLS_SORT(
-        routed_bam.markdup,
-        [[], [], []],
-        '',
-    )
     SAMTOOLS_MARKDUP(
-        SAMTOOLS_SORT.out.bam,
+        routed_bam.markdup,
         [[], [], []],
     )
 
@@ -206,7 +201,7 @@ workflow {
     fastqc_zip = FASTQC.out.zip
     star_index = STAR_GENOMEGENERATE.out.index
     star_align_log = star_all_logs
-    sam_files = STAR_ALIGN.out.sam
+    starsorted_bam = STAR_ALIGN.out.bam_sorted
     sam_maps = SAM_TO_MAP.out.map
     combined_maps = COMBINE_EDIT_SITES.out
     edit_sites_tsv = FIND_EDIT_SITES.out
@@ -227,8 +222,8 @@ output {
     star_align_log {
         path "star/align/log"
     }
-    sam_files {
-        path "star/align/sam"
+    starsorted_bam {
+        path "star/align/sortedbam"
     }
     sam_maps {
         path "temple/map"
