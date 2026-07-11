@@ -1,0 +1,10 @@
+sample,fastq_1,fastq_2,condition
+ctrl_DS1,../simulated_reads/ctrl_DS1_R1.fq,../simulated_reads/ctrl_DS1_R2.fq,conditionA
+ctrl_DS2,../simulated_reads/ctrl_DS2_R1.fq,../simulated_reads/ctrl_DS2_R2.fq,conditionA
+ctrl_DS3,../simulated_reads/ctrl_DS3_R1.fq,../simulated_reads/ctrl_DS3_R2.fq,conditionA
+ctrl_DS4,../simulated_reads/ctrl_DS4_R1.fq,../simulated_reads/ctrl_DS4_R2.fq,conditionB
+ctrl_DS5,../simulated_reads/ctrl_DS5_R1.fq,../simulated_reads/ctrl_DS5_R2.fq,conditionB
+ctrl_DS6,../simulated_reads/ctrl_DS6_R1.fq,../simulated_reads/ctrl_DS6_R2.fq,conditionB
+ctrl_DS7,../simulated_reads/ctrl_DS7_R1.fq,../simulated_reads/ctrl_DS7_R2.fq,conditionC
+ctrl_DS8,../simulated_reads/ctrl_DS8_R1.fq,../simulated_reads/ctrl_DS8_R2.fq,conditionC
+ctrl_DS9,../simulated_reads/ctrl_DS9_R1.fq,../simulated_reads/ctrl_DS9_R2.fq,conditionC
