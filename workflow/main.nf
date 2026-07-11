@@ -104,7 +104,11 @@ workflow {
     multiqc_files = FASTQC.out.zip
         .mix(FASTQC_TRIMMED.out.zip)
         .mix(CUTADAPT.out.log)
-        .mix(star_all_logs)
+        .mix(
+            star_all_logs.map { _meta, logs ->
+                logs
+            }
+        )
 
     multiqc_input_ch = multiqc_files
         .collect()
