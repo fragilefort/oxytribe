@@ -135,7 +135,11 @@ workflow {
         false,
     )
 
-    SAMTOOLS_NAMESORT(routed_bam.markdup)
+    SAMTOOLS_NAMESORT(
+        routed_bam.markdup,
+        [[], [], []],
+        [],
+    )
     SAMTOOLS_FIXMATE(SAMTOOLS_NAMESORT.out.bam)
     SAMTOOLS_SORT(
         SAMTOOLS_FIXMATE.out.bam,
