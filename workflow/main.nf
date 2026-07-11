@@ -100,14 +100,26 @@ workflow {
         STAR_ALIGN.out.log_out,
         STAR_ALIGN.out.log_progress,
     )
-    multiqc_files = FASTQC.out.zip
-        .mix(CUTADAPT.out.log)
-        .mix(star_all_logs)
 
     multiqc_files = FASTQC.out.zip
         .mix(FASTQC_TRIMMED.out.zip)
         .mix(CUTADAPT.out.log)
         .mix(star_all_logs)
+
+    multiqc_input_ch = multiqc_files
+        .collect()
+        .map { files ->
+            [
+                [id: 'multiqc'],
+                files,
+                [],
+                [],
+                [],
+                [],
+            ]
+        }
+
+    MULTIQC(multiqc_input_ch)
 
     STAR_ALIGN.out.bam_sorted
         .branch {
@@ -116,6 +128,9 @@ workflow {
         }
         .set { routed_bam }
 
+    routed_bam.markdup.view { meta, bam ->
+        "DEBUG markdup branch: ${meta.id} -> ${bam}"
+    }
     SAMTOOLS_INDEX(routed_bam.umi)
     UMITOOLS_DEDUP(
         routed_bam.umi.join(SAMTOOLS_INDEX.out.index),
@@ -199,6 +214,7 @@ workflow {
     publish:
     fastqc_html = FASTQC.out.html
     fastqc_zip = FASTQC.out.zip
+    multiqc_report = MULTIQC.out.report
     star_index = STAR_GENOMEGENERATE.out.index
     star_align_log = star_all_logs
     starsorted_bam = STAR_ALIGN.out.bam_sorted
@@ -215,6 +231,9 @@ output {
     }
     fastqc_zip {
         path "fastqc/zip"
+    }
+    multiqc_report {
+        path "multiqc"
     }
     star_index {
         path "star/index"
