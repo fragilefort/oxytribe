@@ -120,16 +120,14 @@ workflow {
         }
     MULTIQC(multiqc_input_ch)
 
-    STAR_ALIGN.out.bam_sorted
+    STAR_ALIGN.out.bam_sorted_aligned
+        .view { meta, bam -> "DEBUG bam_sorted_aligned: ${meta.id} -> ${bam}" }
         .branch {
             umi: params.umi
             markdup: true
         }
         .set { routed_bam }
 
-    routed_bam.markdup.view { meta, bam ->
-        "DEBUG markdup branch: ${meta.id} -> ${bam}"
-    }
     SAMTOOLS_INDEX(routed_bam.umi)
     UMITOOLS_DEDUP(
         routed_bam.umi.join(SAMTOOLS_INDEX.out.index),
