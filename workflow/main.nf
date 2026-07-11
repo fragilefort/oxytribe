@@ -104,14 +104,10 @@ workflow {
     multiqc_files = FASTQC.out.zip
         .mix(FASTQC_TRIMMED.out.zip)
         .mix(CUTADAPT.out.log)
-        .mix(
-            star_all_logs.map { _meta, logs ->
-                logs
-            }
-        )
+        .mix(star_all_logs)
 
     multiqc_input_ch = multiqc_files
-        .collect()
+        .collect { _meta, files -> files }
         .map { files ->
             [
                 [id: 'multiqc'],
@@ -122,7 +118,6 @@ workflow {
                 [],
             ]
         }
-
     MULTIQC(multiqc_input_ch)
 
     STAR_ALIGN.out.bam_sorted
