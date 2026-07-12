@@ -14,7 +14,8 @@ This is an attempt to improve the HyperTRIBE software by moving some parts from 
 - [x] USE UMI dedup
 - [x] OW, use cordinate based dedupping
 - [x] Trimming process 
-- [ ] Containerize the Pixi environment
+- [x] Add containers for R analysis script
+- [ ] Add containers for the rust binaries to support multiple platforms
 - [ ] Update the documentation for installation and usage
 - [ ] Testing and benchmarking
 
