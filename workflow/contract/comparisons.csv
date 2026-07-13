@@ -1,3 +1,4 @@
 treatment,control
-conditionA,conditionC
-conditionB,conditionC
+conditionB,conditionA
+conditionC,conditionB
+conditionC,conditionA
