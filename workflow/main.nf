@@ -184,7 +184,7 @@ workflow {
     control_bins = COMBINE_EDIT_SITES.out
 
     comparisons_ch
-        .join(treatment_bins)
+        .combine(treatment_bins, by: 0)
         .map { treatment, control, treatment_bin ->
             [control, treatment, treatment_bin]
         }
