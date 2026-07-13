@@ -226,7 +226,7 @@ workflow {
     multiqc_report = MULTIQC.out.report
     star_index = STAR_GENOMEGENERATE.out.index
     star_align_log = star_all_logs
-    starsorted_bam = STAR_ALIGN.out.bam_sorted
+    starsorted_bam = STAR_ALIGN.out.bam_sorted_aligned
     sam_maps = SAM_TO_MAP.out.map
     combined_maps = COMBINE_EDIT_SITES.out
     edit_sites_tsv = FIND_EDIT_SITES.out
