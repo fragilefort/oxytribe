@@ -3,6 +3,12 @@ name: Build and Publish Oxytribe Rust Container
 on:
   push:
     branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'workflow/containers/oxytribe-rust/Dockerfile'
+      - '.github/workflows/docker-publish.yml'
     tags: [ 'v*.*.*' ]
   workflow_dispatch:
 
