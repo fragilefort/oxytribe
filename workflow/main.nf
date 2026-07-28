@@ -249,9 +249,7 @@ workflow {
     )
 
     BEDTOOLS_INTERSECT(
-        SUBTRACTBKG.out.tsv.combine(
-            refgtf_ch.map { _meta, gtf -> gtf }
-        ).map { meta, tsv, gtf -> [meta, tsv, gtf] },
+        SUBTRACTBKG.out.tsv.combine(channel.fromPath(params.ref_gtf)),
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
