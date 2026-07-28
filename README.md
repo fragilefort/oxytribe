@@ -15,7 +15,7 @@ This is an attempt to improve the HyperTRIBE software by moving some parts from 
 - [x] OW, use cordinate based dedupping
 - [x] Trimming process 
 - [x] Add containers for R analysis script
-- [ ] Allow for subtracting the editing sites from controlVscontrol
+- [x] Allow for subtracting the editing sites from controlVscontrol
 - [ ] Add containers for the rust binaries to support multiple platforms
 - [ ] Update the documentation for installation and usage
 - [ ] Testing and benchmarking
