@@ -1,4 +1,4 @@
-# oxytribe
+# OXYTRIBE
 ![](./assets/blue-ii-joan-miro-1961.jpg)
 *Original painting credit: Joan Miró - Blue II*
 
