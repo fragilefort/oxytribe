@@ -8,9 +8,9 @@ include { MULTIQC } from './modules/nf-core/multiqc/main.nf'
 include { UMITOOLS_EXTRACT } from './modules/nf-core/umitools/extract/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
-include { SAM_TO_MAP } from './modules/local/sam_to_map.nf'
-include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites.nf'
-include { FIND_EDIT_SITES } from './modules/local/find_edit_sites.nf'
+include { SAM_TO_MAP } from './modules/local/samtomap/main.nf'
+include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites/main.nf'
+include { FIND_EDIT_SITES } from './modules/local/find_edit_sites/main.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
 include { SAMTOOLS_FAIDX } from './modules/nf-core/samtools/faidx/main.nf'
 include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites/main.nf'
@@ -22,6 +22,7 @@ include { SAMTOOLS_FIXMATE } from './modules/nf-core/samtools/fixmate/main.nf'
 include { SAMTOOLS_MARKDUP } from './modules/nf-core/samtools/markdup/main.nf'
 include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
 include { SAMTOOLS_VIEW } from './modules/nf-core/samtools/view/main.nf'
+include { SUBTRACTBKG } from './modules/local/subtractbkg/main.nf'
 
 
 params {
@@ -175,15 +176,26 @@ workflow {
         params.combination_mode,
     )
 
-    // comparisons_ch: [treatment, control]
-    comparisons_ch = channel.fromPath(params.comparisons_csv)
-        .splitCsv(header: true)
-        .map { row -> [row.treatment, row.control] }
-
     treatment_bins = COMBINE_EDIT_SITES.out
     control_bins = COMBINE_EDIT_SITES.out
 
-    comparisons_ch
+    // avoid double consumption
+    channel.fromPath(params.comparisons_csv)
+        .splitCsv(header: true)
+        .map { row ->
+            def bg = row.containsKey('background') && row.background ? row.background : null
+            [row.treatment, row.control, bg]
+        }
+        .multiMap { treatment, control, bg ->
+            for_finding: [treatment, control]
+            for_relations: [
+                "${treatment}_vs_${control}",
+                bg ? "${bg}_vs_${control}" : "NO_BG",
+            ]
+        }
+        .set { parsed_comparisons }
+
+    parsed_comparisons.for_finding
         .combine(treatment_bins, by: 0)
         .map { treatment, control, treatment_bin ->
             [control, treatment, treatment_bin]
@@ -204,12 +216,40 @@ workflow {
         params.min_rna_edit_frac,
     )
 
+    FIND_EDIT_SITES.out
+        .map { meta, tsv -> [meta.id, meta, tsv] }
+        .multiMap { id, meta, tsv ->
+            targets: [id, meta, tsv]
+            backgrounds: [id, tsv]
+        }
+        .set { mapped_sites }
+
+    parsed_comparisons.for_relations
+        .join(mapped_sites.targets, by: 0)
+        .branch { _target_id, bg_id, _meta, _target_tsv ->
+            needs_bg: bg_id != "NO_BG"
+            no_bg: bg_id == "NO_BG"
+        }
+        .set { routed_targets }
+
+    ch_no_bg = routed_targets.no_bg.map { _target_id, _bg_id, meta, target_tsv ->
+        [meta, target_tsv, []]
+    }
+
+    ch_with_bg = routed_targets.needs_bg
+        .map { _target_id, bg_id, meta, target_tsv -> [bg_id, meta, target_tsv] }
+        .join(mapped_sites.backgrounds, by: 0)
+        .map { _bg_id, meta, target_tsv, bg_tsv -> [meta, target_tsv, bg_tsv] }
+
+    SUBTRACTBKG(ch_no_bg.mix(ch_with_bg))
+
     SAMTOOLS_FAIDX(
         reffasta_ch.map { meta, fasta -> [meta, fasta, []] },
         true,
     )
+
     BEDTOOLS_INTERSECT(
-        FIND_EDIT_SITES.out.combine(
+        SUBTRACTBKG.out.tsv.combine(
             refgtf_ch.map { _meta, gtf -> gtf }
         ).map { meta, tsv, gtf -> [meta, tsv, gtf] },
         SAMTOOLS_FAIDX.out.sizes.first(),
