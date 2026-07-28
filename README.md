@@ -16,9 +16,9 @@ This is an attempt to improve the HyperTRIBE software by moving some parts from 
 - [x] Trimming process 
 - [x] Add containers for R analysis script
 - [x] Allow for subtracting the editing sites from controlVscontrol
-- [ ] Add containers for the rust binaries to support multiple platforms
+- [x] Add containers for the rust binaries to support multiple platforms
+- [ ] Testing
 - [ ] Update the documentation for installation and usage
-- [ ] Testing and benchmarking
 
 # HyperTRIBE
 HyperTRIBE is a technique used for the identification of the targets of RNA binding proteins (RBP) in vivo. This is an improved version of a previously developed technique called TRIBE (Targets of RNA-binding proteins Identified By Editing).
