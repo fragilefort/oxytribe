@@ -11,7 +11,7 @@ process SUBTRACTBKG {
     tuple val(meta), path(target_tsv), path(bg_tsv)
 
     output:
-    tuple val("${task.process}"), val('subtractbkg'), eval("subtractbkg --version"), topic: versions, emit: versions_subtractbkg
+    path "${meta.id}_subtracted.tsv", emit: tsv
 
     when:
     task.ext.when == null || task.ext.when
