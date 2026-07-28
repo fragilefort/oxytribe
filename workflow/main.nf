@@ -182,20 +182,30 @@ workflow {
     // avoid double consumption
     channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
+        .flatMap { row ->
+            def bg = row.containsKey('background') && row.background ? row.background : null
+            def pairs = [[row.treatment, row.control]]
+            if (bg) {
+                // Automatically register the background pair so FIND_EDIT_SITES computes it
+                pairs << [bg, row.control]
+            }
+            return pairs
+        }
+        .unique()
+        .set { for_finding_ch }
+
+    channel.fromPath(params.comparisons_csv)
+        .splitCsv(header: true)
         .map { row ->
             def bg = row.containsKey('background') && row.background ? row.background : null
-            [row.treatment, row.control, bg]
-        }
-        .multiMap { treatment, control, bg ->
-            for_finding: [treatment, control]
-            for_relations: [
-                "${treatment}_vs_${control}",
-                bg ? "${bg}_vs_${control}" : "NO_BG",
+            [
+                "${row.treatment}_vs_${row.control}",
+                bg ? "${bg}_vs_${row.control}" : "NO_BG",
             ]
         }
-        .set { parsed_comparisons }
+        .set { for_relations_ch }
 
-    parsed_comparisons.for_finding
+    for_finding_ch
         .combine(treatment_bins, by: 0)
         .map { treatment, control, treatment_bin ->
             [control, treatment, treatment_bin]
@@ -224,7 +234,7 @@ workflow {
         }
         .set { mapped_sites }
 
-    parsed_comparisons.for_relations
+    for_relations_ch
         .join(mapped_sites.targets, by: 0)
         .branch { _target_id, bg_id, _meta, _target_tsv ->
             needs_bg: bg_id != "NO_BG"
