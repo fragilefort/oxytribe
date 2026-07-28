@@ -18,7 +18,7 @@ process SUBTRACTBKG {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def bg_arg = bg_tsv ? "--bg ${bg_tsv}" : ""
+    def bg_arg = bg_tsv instanceof List && bg_tsv.isEmpty() ? "" : "--bg ${bg_tsv}"
     """
     subtract_background.r \
         --input ${target_tsv} \
