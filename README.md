@@ -1,5 +1,5 @@
 # oxytribe
-This is an attempt to improve the HyperTRIBE software by moving some parts from Perl to Rust and Python.
+This is an attempt to improve the HyperTRIBE software by using Nextflow and Rust, with simpler logic and easier implementation
 
 ## TODO
 
