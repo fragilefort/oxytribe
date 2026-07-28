@@ -11,7 +11,7 @@ process SUBTRACTBKG {
     tuple val(meta), path(target_tsv), path(bg_tsv)
 
     output:
-    tuple val(meta), "${meta.id}_subtracted.tsv", emit: tsv
+    tuple val(meta), path("${meta.id}_subtracted.tsv"), emit: tsv
 
     when:
     task.ext.when == null || task.ext.when
