@@ -1,7 +1,4 @@
 # OXYTRIBE
-![](./assets/blue-ii-joan-miro-1961.jpg)
-*Original painting credit: Joan Miró - Blue II*
-
 This is an attempt to improve the HyperTRIBE software by using Nextflow and Rust, with simpler logic and easier implementation
 
 ## TODO
