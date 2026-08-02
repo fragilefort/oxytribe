@@ -1,0 +1,5 @@
+sample,fastq_1,fastq_2,condition
+rep1,workflow/contract/test/raw_reads/SRR5944748.fastq,,HyperTRIBE
+rep2,workflow/contract/test/raw_reads/SRR5944749.fastq,,HyperTRIBE
+wtrna,workflow/contract/test/raw_reads/SRR6426146.fastq,,wtRNA
+adar,workflow/contract/test/raw_reads/SRR5944750.fastq,,HyperADARcd
