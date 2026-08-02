@@ -9,7 +9,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Downloading dm6 reference genome..."
 wget -P "${DIR}/ref_genome" https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.gz
-wget -P "${DIR}/ref_genome" https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/genes/dm6.ensGene.gtf.gz
+wget -P "${DIR}/ref_genome" https://hgdownload-euro.soe.ucsc.edu/goldenPath/dm6/bigZips/genes/dm6.ensGene.gtf.gz
 gunzip "${DIR}/ref_genome/dm6.fa.gz"
 gunzip "${DIR}/ref_genome/dm6.ensGene.gtf.gz"
 
