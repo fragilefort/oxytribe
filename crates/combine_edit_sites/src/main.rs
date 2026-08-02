@@ -63,22 +63,19 @@ fn main() -> std::io::Result<()> {
             Mode::Or => true,
         };
         if emit {
-            // compute mean g and other across contributors
-            let mean_g = contributors
+            let sum_g = contributors
                 .iter()
                 .map(|&i| get_g(&mmaps[i], pointers[i]).unwrap())
-                .sum::<u32>()
-                / contributors.len() as u32;
-            let mean_other = contributors
+                .sum::<u32>();
+            let sum_other = contributors
                 .iter()
                 .map(|&i| get_other(&mmaps[i], pointers[i]).unwrap())
-                .sum::<u32>()
-                / contributors.len() as u32;
+                .sum::<u32>();
 
-            writer.write_all(&[min_key.0]).unwrap();
+            writer.write_all(&min_key.0.to_le_bytes()).unwrap(); // wait - min_key is (u8,u32)
             writer.write_all(&min_key.1.to_le_bytes()).unwrap();
-            writer.write_all(&mean_g.to_le_bytes()).unwrap();
-            writer.write_all(&mean_other.to_le_bytes()).unwrap();
+            writer.write_all(&sum_g.to_le_bytes()).unwrap();
+            writer.write_all(&sum_other.to_le_bytes()).unwrap();
         }
         for i in &contributors {
             pointers[*i] += 1;
