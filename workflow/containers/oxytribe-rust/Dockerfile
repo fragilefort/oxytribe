@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-
+ARG CACHE_BUST=1
 RUN cargo build --release
 
 FROM debian:bookworm-slim
