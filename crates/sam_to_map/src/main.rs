@@ -66,12 +66,25 @@ fn main() -> std::io::Result<()> {
             cigar_per_base
                 .zip(parse_md(md_tag))
                 .for_each(|((r, q), md_base)| {
-                    if r == 1 && q == 1 && md_base == Some(b'A') {
+                    if r == 1 && q == 1 {
                         let read_base = sequence[read_idx];
-                        let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
-                        match read_base {
-                            b'G' => entry.0 += 1,
-                            _ => entry.1 += 1,
+                        match md_base {
+                            // mismatch: reference is A, read shows something else
+                            Some(b'A') => {
+                                let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
+                                match read_base {
+                                    b'G' => entry.0 += 1,
+                                    _ => entry.1 += 1,
+                                }
+                            }
+                            // match: reference == read base, only record if read is A
+                            None if read_base == b'A' => {
+                                let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
+                                // A matches reference A : pure coverage, no edit
+                                // we store this as 'other' to track total coverage
+                                entry.1 += 1;
+                            }
+                            _ => {}
                         }
                     }
                     ref_pos += r as u32;
