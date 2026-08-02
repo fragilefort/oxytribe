@@ -1,5 +1,4 @@
 name: Build and Publish Oxytribe Rust Container
-
 on:
   push:
     branches: [ "master", "main" ]
@@ -51,7 +50,6 @@ jobs:
             type=semver,pattern={{version}}
             type=sha,format=short
 
-      # Build multi-architecture image using repository root as context
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -61,3 +59,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
