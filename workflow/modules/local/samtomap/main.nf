@@ -15,6 +15,7 @@ process SAM_TO_MAP {
     tuple val(meta), path("${meta.id}_map.bin"), emit: map
 
     script:
+
     """
     sam_to_map ${sam} ${meta.id}_map.bin ${chr_list}
     """
