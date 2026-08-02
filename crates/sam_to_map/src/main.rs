@@ -74,7 +74,7 @@ fn main() -> std::io::Result<()> {
                                 let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
                                 match read_base {
                                     b'G' => entry.0 += 1,
-                                    _ => entry.1 += 1,
+                                    _ => {}
                                 }
                             }
                             // match: reference == read base, only record if read is A
