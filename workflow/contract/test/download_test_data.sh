@@ -13,6 +13,12 @@ echo "Downloading dm6 reference genome..."
     gunzip "${DIR}/ref_genome/dm6.fa.gz"
 }
 
+
+echo "Decompressing GTF annotation..."
+[ -f "${DIR}/ref_genome/genes.gtf" ] || {
+    gunzip -c "${REPO_ROOT}/annotations/genes.gtf.gz" > "${DIR}/ref_genome/genes.gtf"
+}
+
 echo "Downloading SRA samples..."
 for acc in SRR5944748 SRR5944749 SRR6426146 SRR5944750; do
     [ -f "${DIR}/raw_reads/${acc}.fastq" ] || {
