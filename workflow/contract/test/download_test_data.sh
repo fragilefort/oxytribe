@@ -6,8 +6,6 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Resolve REPO_ROOT 3 levels up from workflow/contract/test/
-REPO_ROOT="${REPO_ROOT:-$(cd "${DIR}/../../.." && pwd)}"
 
 mkdir -p "${DIR}/ref_genome" "${DIR}/raw_reads"
 
@@ -17,10 +15,9 @@ echo "Downloading dm6 reference genome..."
     gunzip "${DIR}/ref_genome/dm6.fa.gz"
 }
 
-
 echo "Decompressing GTF annotation..."
 [ -f "${DIR}/ref_genome/genes.gtf" ] || {
-    gunzip -c "${REPO_ROOT}/annotations/genes.gtf.gz" > "${DIR}/ref_genome/genes.gtf"
+    gunzip -k "${DIR}/ref_genome/genes.gtf.gz"
 }
 
 echo "Downloading SRA samples..."
@@ -31,5 +28,5 @@ for acc in SRR5944748 SRR5944749 SRR6426146 SRR5944750; do
     }
 done
 
-echo "Done. Run the test profile with:"
+echo "Done. Runnning the test profile with:"
 echo "nextflow run workflow/main.nf -profile test,docker"
