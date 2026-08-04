@@ -68,19 +68,20 @@ fn main() -> std::io::Result<()> {
             let ctrl_edit_frac = ctrl_g as f64 / ctrl_total as f64;
             let ctrl_nonedit_frac = ctrl_other as f64 / ctrl_total as f64;
 
-            if ctrl_total > cli.min_control_coverage
+            if ctrl_total >= cli.min_control_coverage
                 && ctrl_edit_frac < cli.max_control_edit_frac
                 && ctrl_nonedit_frac >= cli.min_control_non_g_frac
                 && rna_tot >= cli.min_rna_coverage
                 && rna_edit_frac >= cli.min_rna_edit_frac
             {
                 let chr_name = &chr_names[chr_id as usize];
+                // Output 0-based half-open BED interval [pos - 1, pos)
                 writeln!(
                     writer,
                     "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}",
                     chr_name,
+                    pos - 1,
                     pos,
-                    pos + 1,
                     rna_g,
                     rna_tot,
                     ctrl_g,
