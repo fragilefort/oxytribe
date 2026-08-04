@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# contract/test/download_test_data.sh
+# workflow/contract/test/download_test_data.sh
 # Downloads HyperTRIBE validation dataset (GSE102814)
 # Drosophila dm6 reference genome + 4 SRA samples
 
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Resolve REPO_ROOT 3 levels up from workflow/contract/test/
+REPO_ROOT="${REPO_ROOT:-$(cd "${DIR}/../../.." && pwd)}"
+
 mkdir -p "${DIR}/ref_genome" "${DIR}/raw_reads"
 
 echo "Downloading dm6 reference genome..."
