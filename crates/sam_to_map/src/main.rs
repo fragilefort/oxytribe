@@ -5,17 +5,18 @@ use std::io::Write;
 use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 
-static CIGAR_TABLE: [(u8, u8); 128] = {
-    let mut table = [(0u8, 0u8); 128];
-    table[b'M' as usize] = (1, 1);
-    table[b'=' as usize] = (1, 1);
-    table[b'X' as usize] = (1, 1);
-    table[b'I' as usize] = (1, 0);
-    table[b'S' as usize] = (1, 0);
-    table[b'D' as usize] = (0, 1);
-    table[b'N' as usize] = (0, 1);
-    table[b'H' as usize] = (0, 0);
-    table[b'P' as usize] = (0, 0);
+// Table maps CIGAR op -> (r_adv, q_adv, consumes_md_tag)
+static CIGAR_TABLE: [(u8, u8, bool); 128] = {
+    let mut table = [(0u8, 0u8, false); 128];
+    table[b'M' as usize] = (1, 1, true);
+    table[b'=' as usize] = (1, 1, true);
+    table[b'X' as usize] = (1, 1, true);
+    table[b'I' as usize] = (0, 1, false);
+    table[b'S' as usize] = (0, 1, false);
+    table[b'D' as usize] = (1, 0, true);
+    table[b'N' as usize] = (1, 0, false);
+    table[b'H' as usize] = (0, 0, false);
+    table[b'P' as usize] = (0, 0, false);
     table
 };
 
@@ -44,10 +45,11 @@ fn main() -> std::io::Result<()> {
     let mut map: HashMap<(u8, u32), (u32, u32)> = HashMap::with_capacity(1_000_000);
     let f = File::open(&cli.input_sam).expect("Couldn't open sam file");
     let reader = BufReader::new(f);
+
     reader
         .lines()
         .map(|l| l.unwrap())
-        .filter(|line| !line.starts_with("@"))
+        .filter(|line| !line.starts_with('@'))
         .for_each(|line| {
             let fields: Vec<&str> = line.split('\t').collect();
             let chr = fields[2];
@@ -57,38 +59,45 @@ fn main() -> std::io::Result<()> {
             let start = fields[3].parse::<u32>().unwrap();
             let cigar = fields[5];
             let sequence = fields[9].as_bytes();
-            let md_tag = extract_md_tag(&fields).unwrap();
-            let cigar_per_base = parse_cigar(cigar)
-                .flat_map(|(len, r, q)| std::iter::repeat((r, q)).take(len as usize));
-            let mut ref_pos = start;
-            let mut read_idx: usize = 0;
+            let Some(md_tag) = extract_md_tag(&fields) else {
+                return;
+            };
 
-            cigar_per_base
+            // Expand CIGAR operations and pass through stateful coordinate scan
+            let cigar_steps = parse_cigar(cigar)
+                .flat_map(|(len, r, q, md_adv)| {
+                    std::iter::repeat((r, q, md_adv)).take(len as usize)
+                })
+                .scan((start, 0_usize), |(ref_pos, read_idx), (r, q, md_adv)| {
+                    let current_ref = *ref_pos;
+                    let current_read = *read_idx;
+                    *ref_pos += r as u32;
+                    *read_idx += q as usize;
+                    Some((current_ref, current_read, r, q, md_adv))
+                });
+
+            // Filter out operations that aren't in the MD stream (I, S, N)
+            // This keeps the CIGAR iterator perfectly synchronized with parse_md
+            cigar_steps
+                .filter(|&(_, _, _, _, md_adv)| md_adv)
                 .zip(parse_md(md_tag))
-                .for_each(|((r, q), md_base)| {
+                .for_each(|((ref_pos, read_idx, r, q, _), md_base)| {
                     if r == 1 && q == 1 {
                         let read_base = sequence[read_idx];
                         match md_base {
                             // mismatch: reference is A, read shows something else
-                            Some(b'A') => {
+                            Some(b'A') if read_base == b'G' => {
                                 let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
-                                match read_base {
-                                    b'G' => entry.0 += 1,
-                                    _ => {}
-                                }
+                                entry.0 += 1;
                             }
                             // match: reference == read base, only record if read is A
                             None if read_base == b'A' => {
                                 let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
-                                // A matches reference A : pure coverage, no edit
-                                // we store this as 'other' to track total coverage
                                 entry.1 += 1;
                             }
                             _ => {}
                         }
                     }
-                    ref_pos += r as u32;
-                    read_idx += q as usize;
                 });
         });
 
@@ -116,7 +125,7 @@ fn extract_md_tag<'a>(fields: &'a [&str]) -> Option<&'a str> {
         .map(|field| &field[5..])
 }
 
-fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
+fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8, bool)> + '_ {
     cigar
         .split_inclusive(|c: char| c.is_ascii_alphabetic() || c == '=')
         .map(|pattern| {
@@ -126,29 +135,31 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8)> {
             let len = len.parse::<u32>().expect("invalid CIGAR length");
             let op = op.as_bytes()[0] as usize;
 
-            let (r, q) = CIGAR_TABLE[op];
-            (len, r, q)
+            let (r, q, md_adv) = CIGAR_TABLE[op];
+            (len, r, q, md_adv)
         })
 }
 
-enum MdToken {
-    Matches(std::iter::Take<std::iter::Repeat<Option<u8>>>),
-    Deletion,
-    Mismatch(std::iter::Once<Option<u8>>),
+fn to_option(&b: &u8) -> Option<u8> {
+    Some(b)
 }
 
-impl Iterator for MdToken {
+enum MdToken<'a> {
+    Matches(std::iter::Take<std::iter::Repeat<Option<u8>>>),
+    Bases(std::iter::Map<std::slice::Iter<'a, u8>, fn(&u8) -> Option<u8>>),
+}
+
+impl<'a> Iterator for MdToken<'a> {
     type Item = Option<u8>;
     fn next(&mut self) -> Option<Option<u8>> {
         match self {
             MdToken::Matches(it) => it.next(),
-            MdToken::Deletion => None,
-            MdToken::Mismatch(it) => it.next(),
+            MdToken::Bases(it) => it.next(),
         }
     }
 }
 
-fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> {
+fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> + '_ {
     md.as_bytes()
         .chunk_by(|a, b| a.is_ascii_digit() == b.is_ascii_digit())
         .flat_map(|chunk| {
@@ -156,9 +167,11 @@ fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> {
                 let n: usize = std::str::from_utf8(chunk).unwrap().parse().unwrap();
                 MdToken::Matches(std::iter::repeat(None).take(n))
             } else if chunk[0] == b'^' {
-                MdToken::Deletion
+                // Deletions like ^AC yield deleted reference bases: Some(b'A'), Some(b'C')
+                MdToken::Bases(chunk[1..].iter().map(to_option))
             } else {
-                MdToken::Mismatch(std::iter::once(Some(chunk[0])))
+                // Mismatches like A or C yield reference base: Some(b'A')
+                MdToken::Bases(chunk.iter().map(to_option))
             }
         })
 }
