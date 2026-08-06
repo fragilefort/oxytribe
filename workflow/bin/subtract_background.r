@@ -18,7 +18,7 @@ safe_read <- function(path) {
     if (!file.exists(path) || file.info(path)$size == 0) {
         return(data.table(V1 = character(), V2 = integer(), V3 = integer()))
     }
-    fread(path, sep = "\t", header = FALSE)
+    fread(path, sep = "\t", header = FALSE, skip = "#")
 }
 
 dt <- safe_read(opts$input)
