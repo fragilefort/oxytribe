@@ -23,6 +23,7 @@ if (!all(c("input", "output", "threshold") %in% names(opts))) {
 input_path <- opts$input
 output_path <- opts$output
 edit_threshold <- as.numeric(opts$threshold)
+gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 
 col_names <- c(
     "chr", "site_start", "site_end",
@@ -31,17 +32,51 @@ col_names <- c(
     "gtf_score", "gtf_strand", "gtf_frame", "gtf_attributes"
 )
 
-dt <- fread(
-    input_path,
-    sep        = "\t",
-    header     = FALSE,
-    col.names  = col_names,
-    skip       = "#"
-)
+write_empty_outputs <- function(tx_out, gene_out) {
+    empty_tx <- data.table(
+        transcript_id = character(), gene_name = character(), chr = character(),
+        strand = character(), transcript_length = integer(), n_edit_sites = integer(),
+        total_rna_G = integer(), total_rna_reads = integer(), editing_pct = numeric(),
+        edit_sites = character()
+    )
+    empty_gene <- data.table(
+        gene_name = character(), n_transcripts = integer(), chr = character(),
+        strand = character(), n_edit_sites = integer(), total_rna_G = integer(),
+        total_rna_reads = integer(), editing_pct = numeric(), edit_sites = character()
+    )
+    fwrite(empty_tx, tx_out, sep = "\t", quote = FALSE)
+    fwrite(empty_gene, gene_out, sep = "\t", quote = FALSE)
+}
+
+# Check if file is empty
+if (!file.exists(input_path) || file.info(input_path)$size == 0) {
+    cat("Input file is empty. Writing empty outputs...\n")
+    write_empty_outputs(output_path, gene_output)
+    quit(status = 0)
+}
+
+# Read lines and filter out any '#' header lines dynamically
+raw_lines <- readLines(input_path)
+clean_lines <- raw_lines[!grepl("^#", raw_lines)]
+
+if (length(clean_lines) == 0) {
+    cat("No data rows found after stripping comments. Writing empty outputs...\n")
+    write_empty_outputs(output_path, gene_output)
+    quit(status = 0)
+}
+
+# Parse clean lines into data.table
+dt <- fread(text = clean_lines, sep = "\t", header = FALSE, col.names = col_names)
 
 cat("Total rows:", nrow(dt), "\n")
 dt <- dt[gtf_feature == "exon"]
 cat("Rows after exon filter:", nrow(dt), "\n")
+
+if (nrow(dt) == 0) {
+    cat("No exonic edit sites found. Writing empty outputs...\n")
+    write_empty_outputs(output_path, gene_output)
+    quit(status = 0)
+}
 
 parse_attr <- function(attrs, key) {
     pattern <- paste0(".*?", key, ' "([^"]+)".*')
@@ -72,7 +107,6 @@ summarize_transcript <- function(d) {
     total_reads <- sum(d$rna_total)
     edit_pct <- if (total_reads > 0) round(total_G / total_reads, 4) else 0
 
-    # Display 1-based coordinate (site_end) in site string
     sites <- paste(
         sprintf("%s:%d:%.4f", d$chr, d$site_end, d$rna_edit_frac),
         collapse = ","
@@ -109,7 +143,7 @@ result <- result[order(gene_name, -editing_pct, transcript_id)]
 result <- result[editing_pct >= edit_threshold]
 fwrite(result, output_path, sep = "\t", quote = FALSE)
 
-# Gene-level summary deduplicated at genomic site level to avoid isoform double-counting
+# Gene-level summary deduplicated at genomic site level
 gene_sites <- unique(dt[!is.na(gene_name), .(
     chr, site_start, site_end, rna_G, rna_total, gtf_strand, gene_name
 )])
@@ -126,5 +160,4 @@ gene_result <- gene_sites[, .(
 ), by = gene_name][order(-editing_pct)]
 
 gene_result <- gene_result[editing_pct >= edit_threshold]
-gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 fwrite(gene_result, gene_output, sep = "\t", quote = FALSE)
