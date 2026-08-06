@@ -1,19 +1,10 @@
 #!/usr/bin/env Rscript
 
-# summarize_editing.R
-# Summarizes A-to-G editing sites at transcript level from annotated TSV
-# produced by bedtools intersect (find_edit_sites output + GTF annotation)
-#
-# Usage:
-#   Rscript summarize_editing.R --input <tsv> --output <tsv> --threshold <float>
-#
-
 suppressPackageStartupMessages({
     library(data.table)
     library(purrr)
     library(tibble)
 })
-
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -33,10 +24,6 @@ input_path <- opts$input
 output_path <- opts$output
 edit_threshold <- as.numeric(opts$threshold)
 
-# TSV columns from find_edit_sites (cols 1-8) + GTF columns from bedtools (cols 9+)
-# bedtools -wa -wb appends the full GTF line after the query columns
-# GTF columns: chr, source, feature, start, end, score, strand, frame, attributes
-
 col_names <- c(
     "chr", "site_start", "site_end",
     "rna_G", "rna_total", "ctrl_G", "ctrl_total", "rna_edit_frac",
@@ -49,45 +36,30 @@ dt <- fread(
     sep        = "\t",
     header     = FALSE,
     col.names  = col_names,
-    skip       = 1 # skip the # header line from find_edit_sites
+    skip       = "#"
 )
 
 cat("Total rows:", nrow(dt), "\n")
-
-# We exclude introns by keeping only rows where the GTF feature is "exon".
-# Using transcript-level GTF rows would double-count sites and inflate lengths.
-# CDS rows are also excluded since we want full exonic context.
-
 dt <- dt[gtf_feature == "exon"]
-
 cat("Rows after exon filter:", nrow(dt), "\n")
 
-# attributes column looks like:
-# gene_id "Gsta3"; transcript_id "NM_001420195.1"; gene_name "Gsta3"; ...
-
 parse_attr <- function(attrs, key) {
-    pattern <- paste0(key, ' "([^"]+)"')
-    m <- regmatches(attrs, regexpr(pattern, attrs))
-    ifelse(length(m) == 0 || nchar(m) == 0, NA_character_,
-        sub(pattern, "\\1", m)
-    )
+    pattern <- paste0(".*?", key, ' "([^"]+)".*')
+    has_key <- grepl(paste0(key, ' "([^"]+)"'), attrs)
+    res <- sub(pattern, "\\1", attrs)
+    res[!has_key] <- NA_character_
+    res
 }
 
-dt[, gene_name := map_chr(gtf_attributes, \(a) parse_attr(a, "gene_name"))]
-dt[, transcript_id := map_chr(gtf_attributes, \(a) parse_attr(a, "transcript_id"))]
+dt[, gene_name := parse_attr(gtf_attributes, "gene_name")]
+dt[, transcript_id := parse_attr(gtf_attributes, "transcript_id")]
 
-# Each unique (transcript_id, exon) interval contributes its length.
-# We deduplicate exon intervals first since the same exon can appear
-# multiple times if a site overlaps multiple transcripts.
-
+# 1-based inclusive exon length calculation (+1)
 exon_lengths <- dt[
     !is.na(transcript_id),
-    .(exon_length = unique(gtf_end - gtf_start)),
+    .(exon_length = unique(gtf_end - gtf_start + 1)),
     by = .(transcript_id, gtf_start, gtf_end)
 ][, .(transcript_length = sum(exon_length)), by = transcript_id]
-
-# A single editing site can match multiple exon rows of the same transcript
-# (e.g. overlapping exon annotations). Keep one row per (site, transcript).
 
 dt_dedup <- unique(dt[, .(
     chr, site_start, site_end,
@@ -95,28 +67,26 @@ dt_dedup <- unique(dt[, .(
     gtf_strand, gene_name, transcript_id
 )])
 
-
 summarize_transcript <- function(d) {
-    # editing percentage: sum(G) / sum(G + other) across all sites
     total_G <- sum(d$rna_G)
     total_reads <- sum(d$rna_total)
     edit_pct <- if (total_reads > 0) round(total_G / total_reads, 4) else 0
 
-    # edit sites as "chr:pos:edit_frac" comma separated for easy parsing
+    # Display 1-based coordinate (site_end) in site string
     sites <- paste(
-        sprintf("%s:%d:%.4f", d$chr, d$site_start, d$rna_edit_frac),
+        sprintf("%s:%d:%.4f", d$chr, d$site_end, d$rna_edit_frac),
         collapse = ","
     )
 
     tibble(
-        gene_name         = d$gene_name[1],
-        chr               = d$chr[1],
-        strand            = d$gtf_strand[1],
-        n_edit_sites      = nrow(d),
-        total_rna_G       = total_G,
-        total_rna_reads   = total_reads,
-        editing_pct       = edit_pct,
-        edit_sites        = sites
+        gene_name        = d$gene_name[1],
+        chr              = d$chr[1],
+        strand           = d$gtf_strand[1],
+        n_edit_sites     = nrow(d),
+        total_rna_G      = total_G,
+        total_rna_reads  = total_reads,
+        editing_pct      = edit_pct,
+        edit_sites       = sites
     )
 }
 
@@ -126,12 +96,7 @@ result <- dt_dedup[
     by = transcript_id
 ]
 
-result <- merge(
-    result,
-    exon_lengths,
-    by = "transcript_id",
-    all.x = TRUE
-)
+result <- merge(result, exon_lengths, by = "transcript_id", all.x = TRUE)
 
 setcolorder(result, c(
     "transcript_id", "gene_name", "chr", "strand",
@@ -140,21 +105,26 @@ setcolorder(result, c(
     "edit_sites"
 ))
 
-# sort by editing percentage descending
 result <- result[order(gene_name, -editing_pct, transcript_id)]
 result <- result[editing_pct >= edit_threshold]
 fwrite(result, output_path, sep = "\t", quote = FALSE)
 
-gene_result <- result[, .(
-    n_transcripts   = .N,
+# Gene-level summary deduplicated at genomic site level to avoid isoform double-counting
+gene_sites <- unique(dt[!is.na(gene_name), .(
+    chr, site_start, site_end, rna_G, rna_total, gtf_strand, gene_name
+)])
+
+gene_result <- gene_sites[, .(
+    n_transcripts   = uniqueN(dt[gene_name == .BY$gene_name, transcript_id]),
     chr             = chr[1],
-    strand          = strand[1],
-    n_edit_sites    = sum(n_edit_sites),
-    total_rna_G     = sum(total_rna_G),
-    total_rna_reads = sum(total_rna_reads),
-    editing_pct     = round(sum(total_rna_G) / sum(total_rna_reads), 4),
-    edit_sites      = paste(unique(unlist(strsplit(edit_sites, ","))), collapse = ",")
+    strand          = gtf_strand[1],
+    n_edit_sites    = .N,
+    total_rna_G     = sum(rna_G),
+    total_rna_reads = sum(rna_total),
+    editing_pct     = if (sum(rna_total) > 0) round(sum(rna_G) / sum(rna_total), 4) else 0,
+    edit_sites      = paste(sprintf("%s:%d", chr, site_end), collapse = ",")
 ), by = gene_name][order(-editing_pct)]
 
+gene_result <- gene_result[editing_pct >= edit_threshold]
 gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 fwrite(gene_result, gene_output, sep = "\t", quote = FALSE)
