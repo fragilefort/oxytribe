@@ -72,6 +72,10 @@ dt <- fread(text = clean_lines, sep = "\t", header = FALSE, col.names = col_name
 
 cat("Total rows loaded:", nrow(dt), "\n")
 
+dt[, rna_edit_frac := as.numeric(rna_edit_frac)]
+dt <- dt[rna_edit_frac >= edit_threshold]
+cat("Rows after site-level threshold filter (>= ", edit_threshold, "): ", nrow(dt), "\n", sep = "")
+
 # Apply optional exon-only filter based on command-line flag
 if (exons_only) {
     dt <- dt[gtf_feature == "exon"]
