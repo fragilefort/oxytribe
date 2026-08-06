@@ -17,12 +17,14 @@ parse_args <- function(args) {
 opts <- parse_args(args)
 
 if (!all(c("input", "output", "threshold") %in% names(opts))) {
-    stop("Usage: Rscript summarize_editing.R --input <tsv> --output <tsv> --threshold <float>")
+    stop("Usage: Rscript summarize_editing.R --input <tsv> --output <tsv> --threshold <float> [--exons_only <true|false>]")
 }
 
 input_path <- opts$input
 output_path <- opts$output
 edit_threshold <- as.numeric(opts$threshold)
+exons_only <- if (!is.null(opts$exons_only)) as.logical(opts$exons_only) else FALSE
+
 gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 
 col_names <- c(
@@ -68,12 +70,18 @@ if (length(clean_lines) == 0) {
 # Parse clean lines into data.table
 dt <- fread(text = clean_lines, sep = "\t", header = FALSE, col.names = col_names)
 
-cat("Total rows:", nrow(dt), "\n")
-dt <- dt[gtf_feature == "exon"]
-cat("Rows after exon filter:", nrow(dt), "\n")
+cat("Total rows loaded:", nrow(dt), "\n")
+
+# Apply optional exon-only filter based on command-line flag
+if (exons_only) {
+    dt <- dt[gtf_feature == "exon"]
+    cat("Rows after exons_only filter:", nrow(dt), "\n")
+} else {
+    cat("Processing all annotated features (exons + introns).\n")
+}
 
 if (nrow(dt) == 0) {
-    cat("No exonic edit sites found. Writing empty outputs...\n")
+    cat("No matching edit sites found. Writing empty outputs...\n")
     write_empty_outputs(output_path, gene_output)
     quit(status = 0)
 }
@@ -89,7 +97,7 @@ parse_attr <- function(attrs, key) {
 dt[, gene_name := parse_attr(gtf_attributes, "gene_name")]
 dt[, transcript_id := parse_attr(gtf_attributes, "transcript_id")]
 
-# 1-based inclusive exon length calculation (+1)
+# 1-based inclusive feature length calculation (+1)
 exon_lengths <- dt[
     !is.na(transcript_id),
     .(exon_length = unique(gtf_end - gtf_start + 1)),
@@ -105,7 +113,7 @@ dt_dedup <- unique(dt[, .(
 summarize_transcript <- function(d) {
     total_G <- sum(d$rna_G)
     total_reads <- sum(d$rna_total)
-    edit_pct <- if (total_reads > 0) round(total_G / total_reads, 4) else 0
+    edit_pct <- round(mean(d$rna_edit_frac), 4)
 
     sites <- paste(
         sprintf("%s:%d:%.4f", d$chr, d$site_end, d$rna_edit_frac),
@@ -139,25 +147,25 @@ setcolorder(result, c(
     "edit_sites"
 ))
 
-result <- result[order(gene_name, -editing_pct, transcript_id)]
+result <- result[order(gene_name, -n_edit_sites, -editing_pct)]
 result <- result[editing_pct >= edit_threshold]
 fwrite(result, output_path, sep = "\t", quote = FALSE)
 
 # Gene-level summary deduplicated at genomic site level
 gene_sites <- unique(dt[!is.na(gene_name), .(
-    chr, site_start, site_end, rna_G, rna_total, gtf_strand, gene_name
+    chr, site_start, site_end, rna_G, rna_total, rna_edit_frac, gtf_strand, gene_name
 )])
 
 gene_result <- gene_sites[, .(
-    n_transcripts   = uniqueN(dt[gene_name == .BY$gene_name, transcript_id]),
+    n_transcripts   = uniqueN(dt[gene_name == .BY$gene_name & !is.na(transcript_id), transcript_id]),
     chr             = chr[1],
     strand          = gtf_strand[1],
     n_edit_sites    = .N,
     total_rna_G     = sum(rna_G),
     total_rna_reads = sum(rna_total),
-    editing_pct     = if (sum(rna_total) > 0) round(sum(rna_G) / sum(rna_total), 4) else 0,
+    editing_pct     = round(mean(rna_edit_frac), 4),
     edit_sites      = paste(sprintf("%s:%d", chr, site_end), collapse = ",")
-), by = gene_name][order(-editing_pct)]
+), by = gene_name][order(-n_edit_sites, -editing_pct)]
 
 gene_result <- gene_result[editing_pct >= edit_threshold]
 fwrite(gene_result, gene_output, sep = "\t", quote = FALSE)
