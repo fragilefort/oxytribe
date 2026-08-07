@@ -11,6 +11,7 @@ nf-core = ">=4.0.2,<5"
 rust = ">=1.96.0,<1.97"
 c-compiler = ">=1.11.0,<2"
 sra-tools = ">=3.4.1,<4"
+r-here = ">=1.0.2,<2"
 
 [tasks]
 download-test-data = "bash workflow/contract/test/download_test_data.sh"
