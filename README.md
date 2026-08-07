@@ -17,7 +17,7 @@ This is an attempt to improve the HyperTRIBE software by using Nextflow and Rust
 - [x] Add containers for R analysis script
 - [x] Allow for subtracting the editing sites from controlVscontrol
 - [x] Add containers for the rust binaries to support multiple platforms
-- [ ] Testing
+- [x] Testing
 - [ ] Update the documentation for installation and usage
 
 # HyperTRIBE
