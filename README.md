@@ -18,7 +18,7 @@ OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and ge
 - [x] Allow for subtracting the editing sites from controlVscontrol
 - [x] Add containers for the rust binaries to support multiple platforms
 - [x] Testing
-- [ ] Update the documentation for installation and usage
+- [x] Update the documentation for installation and test profile
 - [ ] Docs for parameters
 - [ ] Docs for validation
 - [ ] Docs for outputs
@@ -80,7 +80,7 @@ oxytribe/
 │   │   └── test.config         # test profile configuration
 │   ├── containers/
 │   │   ├── oxytribe-rust/      # Dockerfile for Rust binaries
-│   │   └── oxytribe-r/         # Dockerfile and Singularity SIF for R execution
+│   │   └── oxytribe-r/         # Dockerfile for R execution
 │   ├── contract/               # input schema definitions and test datasets
 │   │   ├── input.csv
 │   │   ├── comparisons.csv
