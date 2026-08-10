@@ -24,7 +24,7 @@ OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and ge
 ## Architecture
 he pipeline is handled  using Nextflow (DSL2). Read processing, alignment, and QC are handled via standard bioinformatics modules (nf-core), followed by a custom 3 Rust binaries for candidate site identification, and downstream R / Bedtools modules for background subtraction, GTF annotation, and target summarization.All modules here support docker containers and apptainers, custom binaries uses sha digests to insure reproducablity.
 
-![](./assets/arc.png)
+![]()
  
 ## Installation
 To install OXYTRIBE, you only need [Pixi](https://pixi.sh) to manage reproducible Conda and R environments. It also have all the software to run the pipeline like nexflow, nf-core. It was tested with `pixi 0.72.2` but should be fine with other versions.
