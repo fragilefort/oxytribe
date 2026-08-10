@@ -19,31 +19,101 @@ OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and ge
 - [x] Add containers for the rust binaries to support multiple platforms
 - [x] Testing
 - [ ] Update the documentation for installation and usage
-
+- [ ] Docs for parameters
+- [ ] Docs for validation
+- [ ] Docs for outputs
 
 ## Architecture
-he pipeline is handled  using Nextflow (DSL2). Read processing, alignment, and QC are handled via standard bioinformatics modules (nf-core), followed by a custom 3 Rust binaries for candidate site identification, and downstream R / Bedtools modules for background subtraction, GTF annotation, and target summarization.All modules here support docker containers and apptainers, custom binaries uses sha digests to insure reproducablity.
+The pipeline is handled  using Nextflow (DSL2). Read processing, alignment, and QC are handled via standard bioinformatics modules (nf-core), followed by a custom 3 Rust binaries for candidate site identification, and downstream R / Bedtools modules for background subtraction, GTF annotation, and target summarization.All modules here support docker containers and apptainers, custom binaries uses sha digests to insure reproducablity.
 
 ![](./assets/arc.svg)
  
-## Installation
-To install OXYTRIBE, you only need [Pixi](https://pixi.sh) to manage reproducible Conda and R environments. It also have all the software to run the pipeline like nexflow, nf-core. It was tested with `pixi 0.72.2` but should be fine with other versions.
-
+# Installation
+ 
+OXYTRIBE requires only [Pixi](https://pixi.sh) to manage all dependencies including Nextflow, nf-core tools, R, and SRA toolkit.
+ 
 ```bash
+# install pixi if not already installed
+curl -fsSL https://pixi.sh/install.sh | sh
+ 
+# clone and install
 git clone https://github.com/fragilefort/oxytribe.git
-cd oxytibe
+cd oxytribe
 pixi install
 ```
+ 
+Containers (Docker or Singularity/Apptainer) are required to run the pipeline since the nf-core modules and Rust binaries are distributed as container images. Docker or Singularity must be available on your system.
 
 ## Quick start
-You can run the test profile using:
+ 
+Download the test data and run the validation dataset from the original HyperTRIBE paper (GSE102814, Drosophila dm6):
+ 
 ```bash
 pixi run test
 ```
-This does the following:
-1. Download test data from NCBI, 4 fastq files used in the HyperTRIBE paper along with downloading the fasta ref genome. 
-2. Run end to end pipelines on these samples using the parameters in `workflow/conf/test.config`. This also uses addtional files which are locates in `workflow/contract/test`, these files include chromosme names, input sample sheet and comparsions sample sheet.
+ 
+This command:
+1. Downloads 4 FASTQ files from SRA (Hrp48 HyperTRIBE rep1/rep2, wtRNA control, HyperADARcd background)
+2. Downloads the dm6 reference genome from UCSC
+3. Runs the full pipeline end-to-end using the test profile
+Expected output is in `ChinaTown/` with editing sites for the `HyperTRIBE_vs_wtRNA` comparison.
 
+## Project structure (for development)
+```
+oxytribe/
+├── crates/
+│   ├── sam_to_map/
+│   ├── combine_edit_sites/
+│   └── find_edit_sites/
+├── workflow/
+│   ├── main.nf                 # nextflow entry
+│   ├── nextflow.config         # pipeline configuration entry point
+│   ├── modules.json            # nf-core module tracking state
+│   ├── bin/                    # executable binaries and downstream scripts
+│   │   ├── subtract_background.r
+│   │   ├── summarize_edit_sites.r
+│   │   └── match_sites.r       # validation script
+│   ├── conf/
+│   │   ├── params.config       # default parameter values
+│   │   ├── process.config      # process resource allocations
+│   │   ├── profiles.config     # execution profiles (local, server, singularity)
+│   │   └── test.config         # test profile configuration
+│   ├── containers/
+│   │   ├── oxytribe-rust/      # Dockerfile for Rust binaries
+│   │   └── oxytribe-r/         # Dockerfile and Singularity SIF for R execution
+│   ├── contract/               # input schema definitions and test datasets
+│   │   ├── input.csv
+│   │   ├── comparisons.csv
+│   │   ├── chromosomes.txt
+│   │   ├── sim_input.csv
+│   │   └── test/               # automated test profile data
+│   │       ├── download_test_data.sh
+│   │       ├── ref_genome/     # test genome fasta/gtf
+│   │       └── validation_data/# HyperTRIBE result for validation
+│   └── modules/
+│       ├── local/
+│       │   ├── samtomap/
+│       │   ├── combine_edit_sites/
+│       │   ├── find_edit_sites/
+│       │   ├── subtractbkg/
+│       │   └── summarize_edit_sites/
+│       └── nf-core/
+│           ├── bedtools/
+│           ├── cutadapt/
+│           ├── fastqc/
+│           ├── multiqc/
+│           ├── samtools/
+│           ├── star/
+│           └── umitools/
+├── docs/
+│   ├── parameters.md
+│   ├── output.md
+│   └── validation.md
+└── pixi.toml                   # environment and reproducible task definitions
+```
+
+## Contributions
+Contributions are welcome via issues and PRs
 
 # HyperTRIBE
 HyperTRIBE is a technique used for the identification of the targets of RNA binding proteins (RBP) in vivo. This is an improved version of a previously developed technique called TRIBE (Targets of RNA-binding proteins Identified By Editing).
