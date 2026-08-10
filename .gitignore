@@ -2,6 +2,7 @@
 .pixi/*
 !.pixi/config.toml
 .nextflow/
+.nextflow*
 .nf-core.yml
 *.sif
 

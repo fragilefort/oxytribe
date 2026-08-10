@@ -1,5 +1,5 @@
 # OXYTRIBE
-This is an attempt to improve the HyperTRIBE software by using Nextflow and Rust, with simpler logic and easier implementation
+OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and gene-level target prioritization. It is a full rewrite of the original [HyperTRIBE](https://github.com/rosbashlab/HyperTRIBE) computational pipeline, replacing the Perl/Python/MySQL stack with Rust binaries and Nextflow, removing the database dependency entirely, and adding support for multi-replicate comparison with configurable AND/OR logic. Note, this is not a typical rewrite where the same logic is retained, OXYTRIBE uses a very different approach across all main steps from HyperTRIBE.
 
 ## TODO
 
@@ -19,6 +19,31 @@ This is an attempt to improve the HyperTRIBE software by using Nextflow and Rust
 - [x] Add containers for the rust binaries to support multiple platforms
 - [x] Testing
 - [ ] Update the documentation for installation and usage
+
+
+## Architecture
+he pipeline is handled  using Nextflow (DSL2). Read processing, alignment, and QC are handled via standard bioinformatics modules (nf-core), followed by a custom 3 Rust binaries for candidate site identification, and downstream R / Bedtools modules for background subtraction, GTF annotation, and target summarization.All modules here support docker containers and apptainers, custom binaries uses sha digests to insure reproducablity.
+
+![](./assets/arc.png)
+ 
+## Installation
+To install OXYTRIBE, you only need [Pixi](https://pixi.sh) to manage reproducible Conda and R environments. It also have all the software to run the pipeline like nexflow, nf-core. It was tested with `pixi 0.72.2` but should be fine with other versions.
+
+```bash
+git clone https://github.com/fragilefort/oxytribe.git
+cd oxytibe
+pixi install
+```
+
+## Quick start
+You can run the test profile using:
+```bash
+pixi run test
+```
+This does the following:
+1. Download test data from NCBI, 4 fastq files used in the HyperTRIBE paper along with downloading the fasta ref genome. 
+2. Run end to end pipelines on these samples using the parameters in `workflow/conf/test.config`. This also uses addtional files which are locates in `workflow/contract/test`, these files include chromosme names, input sample sheet and comparsions sample sheet.
+
 
 # HyperTRIBE
 HyperTRIBE is a technique used for the identification of the targets of RNA binding proteins (RBP) in vivo. This is an improved version of a previously developed technique called TRIBE (Targets of RNA-binding proteins Identified By Editing).
