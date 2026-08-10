@@ -15,5 +15,6 @@ r-here = ">=1.0.2,<2"
 
 [tasks]
 download-test-data = "bash workflow/contract/test/download_test_data.sh"
-test = { cmd = "nextflow run workflow/main.nf -profile test,docker", depends-on = ["download-test-data"] }
+test-docker = { cmd = "nextflow run workflow/main.nf -profile test,docker", depends-on = ["download-test-data"] }
+test-sigularity = { cmd = "nextflow run workflow/main.nf -profile test,singularity", depends-on = ["download-test-data"] }
 validation = "Rscript workflow/bin/match_sites.r"

@@ -49,7 +49,10 @@ Containers (Docker or Singularity/Apptainer) are required to run the pipeline si
 Download the test data and run the validation dataset from the original HyperTRIBE paper (GSE102814, Drosophila dm6):
  
 ```bash
-pixi run test
+# Use docker images
+pixi run test-docker
+# Or use singularity
+pixi run test-singularity
 ```
  
 This command:
