@@ -18,6 +18,7 @@ OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and ge
 - [x] Allow for subtracting the editing sites from controlVscontrol
 - [x] Add containers for the rust binaries to support multiple platforms
 - [x] Testing
+- [ ] Validation using the HyperTRIBE sample data
 - [x] Update the documentation for installation and test profile
 - [ ] Docs for parameters
 - [ ] Docs for validation
