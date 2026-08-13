@@ -1,7 +1,6 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl = 2
 
-
 include { FASTQC } from './modules/nf-core/fastqc/main.nf'
 include { FASTQC as FASTQC_TRIMMED } from './modules/nf-core/fastqc/main.nf'
 include { MULTIQC } from './modules/nf-core/multiqc/main.nf'
@@ -9,8 +8,10 @@ include { UMITOOLS_EXTRACT } from './modules/nf-core/umitools/extract/main.nf'
 include { STAR_GENOMEGENERATE } from './modules/nf-core/star/genomegenerate/main.nf'
 include { STAR_ALIGN } from './modules/nf-core/star/align/main.nf'
 include { SAM_TO_MAP } from './modules/local/samtomap/main.nf'
+include { COMBINE_CONTROLS } from './modules/local/combinecontrols/main.nf'
 include { COMBINE_EDIT_SITES } from './modules/local/combine_edit_sites/main.nf'
 include { FIND_EDIT_SITES } from './modules/local/find_edit_sites/main.nf'
+include { PREPARE_GENE_SPANS } from './modules/local/makespan/main.nf'
 include { BEDTOOLS_INTERSECT } from './modules/nf-core/bedtools/intersect/main.nf'
 include { SAMTOOLS_FAIDX } from './modules/nf-core/samtools/faidx/main.nf'
 include { SUMMARIZE_EDIT_SITES } from './modules/local/summarize_edit_sites/main.nf'
@@ -24,7 +25,6 @@ include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index/main.nf'
 include { SAMTOOLS_VIEW } from './modules/nf-core/samtools/view/main.nf'
 include { SUBTRACTBKG } from './modules/local/subtractbkg/main.nf'
 
-
 params {
     input_csv: Path
     ref_fasta: Path
@@ -32,6 +32,7 @@ params {
     star_ignore_sjdbgtf: Boolean
     chr_list: Path
     combination_mode: String
+    control_combination: String
     comparisons_csv: Path
     min_control_coverage: Integer
     max_control_edit_frac: BigDecimal
@@ -44,7 +45,6 @@ params {
     skip_umiextract: Boolean
     skip_trimming: Boolean
 }
-
 
 workflow {
 
@@ -62,6 +62,7 @@ workflow {
                 : [file(row.fastq_1), file(row.fastq_2)]
             [meta, files]
         }
+
     FASTQC(reads_ch)
 
     reads_ch
@@ -73,6 +74,7 @@ workflow {
 
     UMITOOLS_EXTRACT(routed_reads_ch.extract)
     post_umi_ch = UMITOOLS_EXTRACT.out.reads.mix(routed_reads_ch.bypass)
+
     post_umi_ch
         .branch {
             trim: !params.skip_trimming
@@ -81,17 +83,12 @@ workflow {
         .set { routed_trim_ch }
 
     CUTADAPT(routed_trim_ch.trim)
-    align_input_ch = CUTADAPT.out.reads.mix(
-        routed_trim_ch.bypass
-    )
-
+    align_input_ch = CUTADAPT.out.reads.mix(routed_trim_ch.bypass)
     FASTQC_TRIMMED(CUTADAPT.out.reads)
 
+    reffasta_ch = channel.fromPath(params.ref_fasta).map { fasta -> [[id: 'genome'], fasta] }
+    refgtf_ch = channel.fromPath(params.ref_gtf).map { gtf -> [[id: 'genome'], gtf] }
 
-    reffasta_ch = channel.fromPath(params.ref_fasta)
-        .map { fasta -> [[id: 'genome'], fasta] }
-    refgtf_ch = channel.fromPath(params.ref_gtf)
-        .map { gtf -> [[id: 'genome'], gtf] }
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
     STAR_ALIGN(
@@ -100,6 +97,7 @@ workflow {
         refgtf_ch.first(),
         params.star_ignore_sjdbgtf ?: false,
     )
+
     star_all_logs = STAR_ALIGN.out.log_final.mix(
         STAR_ALIGN.out.log_out,
         STAR_ALIGN.out.log_progress,
@@ -112,16 +110,8 @@ workflow {
 
     multiqc_input_ch = multiqc_files
         .collect { _meta, files -> files }
-        .map { files ->
-            [
-                [id: 'multiqc'],
-                files,
-                [],
-                [],
-                [],
-                [],
-            ]
-        }
+        .map { files -> [[id: 'multiqc'], files, [], [], [], []] }
+
     MULTIQC(multiqc_input_ch)
 
     STAR_ALIGN.out.bam_sorted_aligned
@@ -132,26 +122,12 @@ workflow {
         .set { routed_bam }
 
     SAMTOOLS_INDEX(routed_bam.umi)
-    UMITOOLS_DEDUP(
-        routed_bam.umi.join(SAMTOOLS_INDEX.out.index),
-        false,
-    )
+    UMITOOLS_DEDUP(routed_bam.umi.join(SAMTOOLS_INDEX.out.index), false)
 
-    SAMTOOLS_NAMESORT(
-        routed_bam.markdup,
-        [[], [], []],
-        [],
-    )
+    SAMTOOLS_NAMESORT(routed_bam.markdup, [[], [], []], [])
     SAMTOOLS_FIXMATE(SAMTOOLS_NAMESORT.out.bam)
-    SAMTOOLS_SORT(
-        SAMTOOLS_FIXMATE.out.bam,
-        [[], [], []],
-        [],
-    )
-    SAMTOOLS_MARKDUP(
-        SAMTOOLS_SORT.out.bam,
-        [[], [], []],
-    )
+    SAMTOOLS_SORT(SAMTOOLS_FIXMATE.out.bam, [[], [], []], [])
+    SAMTOOLS_MARKDUP(SAMTOOLS_SORT.out.bam, [[], [], []])
 
     dedup_bam_ch = UMITOOLS_DEDUP.out.bam.mix(SAMTOOLS_MARKDUP.out.bam)
 
@@ -163,63 +139,65 @@ workflow {
         [],
     )
 
-    SAM_TO_MAP(
-        SAMTOOLS_VIEW.out.sam,
-        params.chr_list,
-    )
+    SAM_TO_MAP(SAMTOOLS_VIEW.out.sam, params.chr_list)
 
-    grouped_bins = SAM_TO_MAP.out.map
+    channel.fromPath(params.comparisons_csv)
+        .splitCsv(header: true)
+        .map { row -> row.control }
+        .unique()
+        .set { control_conditions_ch }
+
+    SAM_TO_MAP.out.map
         .map { meta, bin -> [meta.condition, bin] }
+        .combine(control_conditions_ch)
+        .filter { cond, _bin, ctrl_cond -> cond == ctrl_cond }
+        .map { cond, bin, _ctrl_cond -> [cond, bin] }
         .groupTuple()
+        .set { raw_controls_grouped_ch }
 
-    COMBINE_EDIT_SITES(
-        grouped_bins,
-        params.combination_mode,
+    COMBINE_CONTROLS(
+        raw_controls_grouped_ch,
+        params.control_combination,
     )
 
-    treatment_bins = COMBINE_EDIT_SITES.out
-    control_bins = COMBINE_EDIT_SITES.out
-
-    // avoid double consumption
     channel.fromPath(params.comparisons_csv)
         .splitCsv(header: true)
         .flatMap { row ->
-            def bg = row.containsKey('background') && row.background ? row.background : null
             def pairs = [[row.treatment, row.control]]
-            if (bg) {
-                // Automatically register the background pair so FIND_EDIT_SITES computes it
-                pairs << [bg, row.control]
+            if (row.containsKey('background') && row.background) {
+                pairs << [row.background, row.control]
             }
             return pairs
         }
         .unique()
-        .set { for_finding_ch }
+        .set { comparison_pairs_ch }
 
-    channel.fromPath(params.comparisons_csv)
-        .splitCsv(header: true)
-        .map { row ->
-            def bg = row.containsKey('background') && row.background ? row.background : null
-            [
-                "${row.treatment}_vs_${row.control}",
-                bg ? "${bg}_vs_${row.control}" : "NO_BG",
+    comparison_pairs_ch
+        .combine(
+            SAM_TO_MAP.out.map.map { meta, bin -> [meta.condition, meta, bin] }
+        )
+        .filter { treatment_cond, _control_cond, sample_cond, _meta, _bin ->
+            treatment_cond == sample_cond
+        }
+        .map { _treatment_cond, control_cond, _sample_cond, meta, bin ->
+            [control_cond, meta, bin]
+        }
+        .combine(COMBINE_CONTROLS.out.bin)
+        .filter { control_cond, _meta, _trt_bin, ctrl_cond_out, _ctrl_bin ->
+            control_cond == ctrl_cond_out
+        }
+        .map { control_cond, meta, trt_bin, _ctrl_cond_out, ctrl_bin ->
+            def pair_meta = meta + [
+                id: "${meta.id}_vs_${control_cond}",
+                comparison_id: "${meta.condition}_vs_${control_cond}",
+                control_cond: control_cond,
             ]
+            [pair_meta, trt_bin, ctrl_bin]
         }
-        .set { for_relations_ch }
-
-    for_finding_ch
-        .combine(treatment_bins, by: 0)
-        .map { treatment, control, treatment_bin ->
-            [control, treatment, treatment_bin]
-        }
-        .combine(control_bins, by: 0)
-        .map { control, treatment, treatment_bin, control_bin ->
-            [[id: "${treatment}_vs_${control}"], treatment_bin, control_bin]
-        }
-        .set { find_edit_sites_ch }
+        .set { find_edit_input_ch }
 
     FIND_EDIT_SITES(
-        find_edit_sites_ch,
-        params.chr_list,
+        find_edit_input_ch,
         params.min_control_coverage,
         params.max_control_edit_frac,
         params.min_control_non_g_frac,
@@ -227,32 +205,52 @@ workflow {
         params.min_rna_edit_frac,
     )
 
-    FIND_EDIT_SITES.out
-        .map { meta, tsv -> [meta.id, meta, tsv] }
-        .multiMap { id, meta, tsv ->
-            targets: [id, meta, tsv]
-            backgrounds: [id, tsv]
-        }
-        .set { mapped_sites }
+    FIND_EDIT_SITES.out.bin
+        .map { meta, bin -> [meta.comparison_id, bin] }
+        .groupTuple()
+        .set { combine_treatments_grouped_ch }
 
-    for_relations_ch
-        .join(mapped_sites.targets, by: 0)
+    COMBINE_EDIT_SITES(
+        combine_treatments_grouped_ch,
+        params.combination_mode,
+        params.chr_list,
+    )
+
+    channel.fromPath(params.comparisons_csv)
+        .splitCsv(header: true)
+        .map { row ->
+            def target_id = "${row.treatment}_vs_${row.control}"
+            def bg_id = row.containsKey('background') && row.background
+                ? "${row.background}_vs_${row.control}"
+                : "NO_BG"
+            [target_id, bg_id]
+        }
+        .set { bg_relations_ch }
+
+    COMBINE_EDIT_SITES.out.tsv
+        .map { meta, tsv -> [meta, tsv] }
+        .set { combined_tsvs }
+
+    bg_relations_ch
+        .join(combined_tsvs.map { meta, tsv -> [meta, meta, tsv] }, by: 0)
         .branch { _target_id, bg_id, _meta, _target_tsv ->
-            needs_bg: bg_id != "NO_BG"
             no_bg: bg_id == "NO_BG"
+            needs_bg: bg_id != "NO_BG"
         }
-        .set { routed_targets }
+        .set { routed_bg }
 
-    ch_no_bg = routed_targets.no_bg.map { _target_id, _bg_id, meta, target_tsv ->
+    ch_no_bg = routed_bg.no_bg.map { _target_id, _bg_id, meta, target_tsv ->
         [meta, target_tsv, []]
     }
 
-    ch_with_bg = routed_targets.needs_bg
+    ch_with_bg = routed_bg.needs_bg
         .map { _target_id, bg_id, meta, target_tsv -> [bg_id, meta, target_tsv] }
-        .join(mapped_sites.backgrounds, by: 0)
+        .join(combined_tsvs.map { meta, tsv -> [meta, tsv] }, by: 0)
         .map { _bg_id, meta, target_tsv, bg_tsv -> [meta, target_tsv, bg_tsv] }
 
     SUBTRACTBKG(ch_no_bg.mix(ch_with_bg))
+
+    PREPARE_GENE_SPANS(channel.fromPath(params.ref_gtf))
 
     SAMTOOLS_FAIDX(
         reffasta_ch.map { meta, fasta -> [meta, fasta, []] },
@@ -260,7 +258,7 @@ workflow {
     )
 
     BEDTOOLS_INTERSECT(
-        SUBTRACTBKG.out.tsv.combine(channel.fromPath(params.ref_gtf)),
+        SUBTRACTBKG.out.tsv.combine(PREPARE_GENE_SPANS.out.gtf),
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
@@ -278,8 +276,9 @@ workflow {
     starsorted_bam = STAR_ALIGN.out.bam_sorted_aligned
     dedupped_sam = SAMTOOLS_VIEW.out.sam
     sam_maps = SAM_TO_MAP.out.map
-    combined_maps = COMBINE_EDIT_SITES.out
-    edit_sites_tsv = FIND_EDIT_SITES.out
+    pooled_controls = COMBINE_CONTROLS.out.bin
+    filtered_bins = FIND_EDIT_SITES.out.bin
+    combined_tsvs = COMBINE_EDIT_SITES.out.tsv
     annotated_tsv = BEDTOOLS_INTERSECT.out.intersect
     summarized_tsv = SUMMARIZE_EDIT_SITES.out
 }
@@ -309,11 +308,14 @@ output {
     sam_maps {
         path "temple/map"
     }
-    combined_maps {
-        path "temple/combined_maps/${params.combination_mode}"
+    pooled_controls {
+        path "temple/pooled_controls"
     }
-    edit_sites_tsv {
-        path "temple/filtered_edit_sites"
+    filtered_bins {
+        path "temple/filtered_replicate_bins"
+    }
+    combined_tsvs {
+        path "temple/combined_tsvs/${params.combination_mode}"
     }
     annotated_tsv {
         path "temple/annotated_edit_sites"
