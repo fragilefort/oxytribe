@@ -5,7 +5,6 @@ use std::io::Write;
 use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 
-// Table maps CIGAR op -> (r_adv, q_adv, consumes_md_tag)
 static CIGAR_TABLE: [(u8, u8, bool); 128] = {
     let mut table = [(0u8, 0u8, false); 128];
     table[b'M' as usize] = (1, 1, true);
@@ -27,6 +26,14 @@ struct Cli {
     chr_list_path: PathBuf,
 }
 
+#[derive(Default, Clone, Copy)]
+struct Counts {
+    a_to_g: u32,  // + strand editing signal
+    a_match: u32, // + strand denominator
+    t_to_c: u32,  // - strand editing signal
+    t_match: u32, // - strand denominator
+}
+
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
@@ -42,7 +49,7 @@ fn main() -> std::io::Result<()> {
         .map(|(i, name)| (name.as_str(), i as u8))
         .collect();
 
-    let mut map: HashMap<(u8, u32), (u32, u32)> = HashMap::with_capacity(1_000_000);
+    let mut map: HashMap<(u8, u32), Counts> = HashMap::with_capacity(1_000_000);
     let f = File::open(&cli.input_sam).expect("Couldn't open sam file");
     let reader = BufReader::new(f);
 
@@ -63,7 +70,6 @@ fn main() -> std::io::Result<()> {
                 return;
             };
 
-            // Expand CIGAR operations and pass through stateful coordinate scan
             let cigar_steps = parse_cigar(cigar)
                 .flat_map(|(len, r, q, md_adv)| {
                     std::iter::repeat((r, q, md_adv)).take(len as usize)
@@ -76,53 +82,48 @@ fn main() -> std::io::Result<()> {
                     Some((current_ref, current_read, r, q, md_adv))
                 });
 
-            // Filter out operations that aren't in the MD stream (I, S, N)
-            // This keeps the CIGAR iterator perfectly synchronized with parse_md
             cigar_steps
                 .filter(|&(_, _, _, _, md_adv)| md_adv)
                 .zip(parse_md(md_tag))
                 .for_each(|((ref_pos, read_idx, r, q, _), md_base)| {
                     if r == 1 && q == 1 {
                         let read_base = sequence[read_idx];
+                        let entry = map.entry((chr_id, ref_pos)).or_default();
                         match md_base {
-                            // mismatch: reference is A, read shows something else
-                            Some(b'A') if read_base == b'G' => {
-                                let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
-                                entry.0 += 1;
-                            }
-                            // match: reference == read base, only record if read is A
-                            None if read_base == b'A' => {
-                                let entry = map.entry((chr_id, ref_pos)).or_insert((0, 0));
-                                entry.1 += 1;
-                            }
+                            Some(b'A') if read_base == b'G' => entry.a_to_g += 1,
+                            None if read_base == b'A' => entry.a_match += 1,
+                            Some(b'T') if read_base == b'C' => entry.t_to_c += 1,
+                            None if read_base == b'T' => entry.t_match += 1,
                             _ => {}
                         }
                     }
                 });
         });
 
-    let mut entries: Vec<((u8, u32), (u32, u32))> = map.into_iter().collect();
+    let mut entries: Vec<((u8, u32), Counts)> = map.into_iter().collect();
     entries.sort_by_key(|(key, _)| *key);
 
     let outfile = File::create(&cli.output_path)?;
     let mut writer = BufWriter::new(outfile);
 
-    for ((chr_id, pos), (g, other)) in entries {
+    // 21-byte record: chr_id(1) + pos(4) + a_to_g(4) + a_match(4) + t_to_c(4) + t_match(4)
+    for ((chr_id, pos), c) in entries {
         writer.write_all(&[chr_id])?;
         writer.write_all(&pos.to_le_bytes())?;
-        writer.write_all(&g.to_le_bytes())?;
-        writer.write_all(&other.to_le_bytes())?;
+        writer.write_all(&c.a_to_g.to_le_bytes())?;
+        writer.write_all(&c.a_match.to_le_bytes())?;
+        writer.write_all(&c.t_to_c.to_le_bytes())?;
+        writer.write_all(&c.t_match.to_le_bytes())?;
     }
     writer.flush()?;
-
     Ok(())
 }
 
 fn extract_md_tag<'a>(fields: &'a [&str]) -> Option<&'a str> {
     fields
         .iter()
-        .find(|field| field.starts_with("MD:Z:"))
-        .map(|field| &field[5..])
+        .find(|f| f.starts_with("MD:Z:"))
+        .map(|f| &f[5..])
 }
 
 fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8, bool)> + '_ {
@@ -131,10 +132,8 @@ fn parse_cigar(cigar: &str) -> impl Iterator<Item = (u32, u8, u8, bool)> + '_ {
         .map(|pattern| {
             let split_pos = pattern.len() - 1;
             let (len, op) = pattern.split_at(split_pos);
-
             let len = len.parse::<u32>().expect("invalid CIGAR length");
             let op = op.as_bytes()[0] as usize;
-
             let (r, q, md_adv) = CIGAR_TABLE[op];
             (len, r, q, md_adv)
         })
@@ -167,10 +166,8 @@ fn parse_md(md: &str) -> impl Iterator<Item = Option<u8>> + '_ {
                 let n: usize = std::str::from_utf8(chunk).unwrap().parse().unwrap();
                 MdToken::Matches(std::iter::repeat(None).take(n))
             } else if chunk[0] == b'^' {
-                // Deletions like ^AC yield deleted reference bases: Some(b'A'), Some(b'C')
                 MdToken::Bases(chunk[1..].iter().map(to_option))
             } else {
-                // Mismatches like A or C yield reference base: Some(b'A')
                 MdToken::Bases(chunk.iter().map(to_option))
             }
         })
