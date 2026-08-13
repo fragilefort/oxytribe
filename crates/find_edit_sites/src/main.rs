@@ -9,7 +9,6 @@ struct Cli {
     rna_path: PathBuf,
     control_path: PathBuf,
     output_path: PathBuf,
-    chr_list_path: PathBuf,
     #[arg(long, default_value_t = 9)]
     min_control_coverage: u32,
     /// Maximum allowed edit (G) fraction in the control sample (filters out SNPs)
@@ -27,24 +26,17 @@ struct Cli {
 
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
-    let chr_names: Vec<String> = std::fs::read_to_string(&cli.chr_list_path)
-        .unwrap()
-        .lines()
-        .map(|s| s.to_string())
-        .collect();
 
     let ctrlf = File::open(&cli.control_path)?;
     let rnaf = File::open(&cli.rna_path)?;
     let mut rnabuf = BufReader::new(&rnaf);
+
     let outfile = File::create(&cli.output_path)?;
     let mut writer = BufWriter::new(outfile);
-    writeln!(
-        writer,
-        "#chr\tstart\tend\trna_G\trna_total\tctrl_G\tctrl_total\trna_edit_frac"
-    )?;
-    // Trust me bro
-    //// SAFETY: ctrl file is written once by sam_to_map and not modified
+
+    // SAFETY: ctrl file is written once by sam_to_map and not modified
     let ctrl_map = unsafe { Mmap::map(&ctrlf)? };
+
     let pos_records = std::iter::from_fn(move || {
         let mut buf = [0u8; 13];
         match rnabuf.read_exact(&mut buf) {
@@ -60,38 +52,36 @@ fn main() -> std::io::Result<()> {
         let other = u32::from_le_bytes(buf[9..13].try_into().unwrap());
         (chr_id, pos, g_count, other)
     });
+
     pos_records.for_each(|(chr_id, pos, rna_g, rna_other)| {
         if let Some((ctrl_g, ctrl_other)) = lookup_control(&ctrl_map, chr_id, pos) {
             let rna_tot = rna_g + rna_other;
             let ctrl_total = ctrl_g + ctrl_other;
+            if rna_tot == 0 || ctrl_total == 0 {
+                return;
+            }
             let rna_edit_frac = rna_g as f64 / rna_tot as f64;
             let ctrl_edit_frac = ctrl_g as f64 / ctrl_total as f64;
             let ctrl_nonedit_frac = ctrl_other as f64 / ctrl_total as f64;
 
-            if ctrl_total >= cli.min_control_coverage
+            let passes = ctrl_total >= cli.min_control_coverage
                 && ctrl_edit_frac < cli.max_control_edit_frac
                 && ctrl_nonedit_frac >= cli.min_control_non_g_frac
                 && rna_tot >= cli.min_rna_coverage
-                && rna_edit_frac >= cli.min_rna_edit_frac
-            {
-                let chr_name = &chr_names[chr_id as usize];
-                // Output 0-based half-open BED interval [pos - 1, pos)
-                writeln!(
-                    writer,
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}",
-                    chr_name,
-                    pos - 1,
-                    pos,
-                    rna_g,
-                    rna_tot,
-                    ctrl_g,
-                    ctrl_total,
-                    rna_edit_frac
-                )
-                .unwrap();
+                && rna_edit_frac >= cli.min_rna_edit_frac;
+
+            if passes {
+                // 21-byte record: chr_id(1) + pos(4) + rna_g(4) + rna_other(4) + ctrl_g(4) + ctrl_other(4)
+                writer.write_all(&[chr_id]).unwrap();
+                writer.write_all(&pos.to_le_bytes()).unwrap();
+                writer.write_all(&rna_g.to_le_bytes()).unwrap();
+                writer.write_all(&rna_other.to_le_bytes()).unwrap();
+                writer.write_all(&ctrl_g.to_le_bytes()).unwrap();
+                writer.write_all(&ctrl_other.to_le_bytes()).unwrap();
             }
         }
     });
+
     writer.flush()?;
     Ok(())
 }
@@ -108,7 +98,6 @@ fn lookup_control(ctrl_mmap: &[u8], target_chr: u8, target_pos: u32) -> Option<(
         let offset = mid * 13;
         let chr_id = ctrl_mmap[offset];
         let pos = u32::from_le_bytes(ctrl_mmap[offset + 1..offset + 5].try_into().unwrap());
-
         match (chr_id, pos).cmp(&(target_chr, target_pos)) {
             std::cmp::Ordering::Equal => {
                 let g = u32::from_le_bytes(ctrl_mmap[offset + 5..offset + 9].try_into().unwrap());
@@ -122,9 +111,7 @@ fn lookup_control(ctrl_mmap: &[u8], target_chr: u8, target_pos: u32) -> Option<(
                 }
                 high = mid - 1;
             }
-            std::cmp::Ordering::Less => {
-                low = mid + 1;
-            }
+            std::cmp::Ordering::Less => low = mid + 1,
         }
     }
     None
