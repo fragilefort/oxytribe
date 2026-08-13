@@ -250,15 +250,13 @@ workflow {
 
     SUBTRACTBKG(ch_no_bg.mix(ch_with_bg))
 
-    PREPARE_GENE_SPANS(channel.fromPath(params.ref_gtf))
-
     SAMTOOLS_FAIDX(
         reffasta_ch.map { meta, fasta -> [meta, fasta, []] },
         true,
     )
 
     BEDTOOLS_INTERSECT(
-        SUBTRACTBKG.out.tsv.combine(PREPARE_GENE_SPANS.out.gtf),
+        SUBTRACTBKG.out.tsv.combine(refgtf_ch.map { _meta, gtf -> gtf }),
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
