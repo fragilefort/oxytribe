@@ -34,10 +34,10 @@ params {
     combination_mode: String
     control_combination: String
     comparisons_csv: Path
-    min_rna_edit_count: Integer
+    min_control_coverage: Integer
+    max_control_edit_frac: BigDecimal
     min_control_non_g_frac: BigDecimal
-    min_rna_coverage: Integer
-    min_rna_edit_frac: BigDecimal
+    min_rna_edit_count: Integer
     edit_threshold: BigDecimal
     umi: Boolean
     exons_only: Boolean
