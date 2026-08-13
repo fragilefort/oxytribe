@@ -1,5 +1,3 @@
-#!/usr/bin/env nextflow
-
 process COMBINE_EDIT_SITES {
     tag "${condition}"
 
@@ -10,14 +8,16 @@ process COMBINE_EDIT_SITES {
     input:
     tuple val(condition), path(bins)
     val mode
+    path chr_list
 
     output:
-    tuple val(condition), path("${condition}.bin")
+    tuple val(condition), path("${condition}.tsv"), emit: tsv
 
     script:
     """
-    combine_edit_sites ${bins} \
-        --output ${condition}.bin \
-        --mode ${mode}
+    combine_edit_sites ${bins} \\
+        --output ${condition}.tsv \\
+        --mode ${mode} \\
+        --chr-list ${chr_list}
     """
 }
