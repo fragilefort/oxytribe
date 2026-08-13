@@ -1,4 +1,4 @@
-process COMBINE_EDIT_SITES {
+process COMBINE_CONTROLS {
     tag "${condition}"
     label 'process_single'
 
@@ -9,16 +9,15 @@ process COMBINE_EDIT_SITES {
     input:
     tuple val(condition), path(bins)
     val mode
-    path chr_list
 
     output:
-    tuple val(condition), path("${condition}.tsv"), emit: tsv
+    tuple val(condition), path("${condition}.bin"), emit: bin
 
     script:
     """
     combine_edit_sites ${bins} \\
-        --output ${condition}.tsv \\
+        --output ${condition}.bin \\
         --mode ${mode} \\
-        --chr-list ${chr_list}
+        --raw
     """
 }
