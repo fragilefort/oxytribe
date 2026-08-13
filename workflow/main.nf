@@ -228,11 +228,11 @@ workflow {
         .set { bg_relations_ch }
 
     COMBINE_EDIT_SITES.out.tsv
-        .map { meta, tsv -> [meta, tsv] }
+        .map { meta, tsv -> [meta.id, meta, tsv] }
         .set { combined_tsvs }
 
     bg_relations_ch
-        .join(combined_tsvs.map { meta, tsv -> [meta, meta, tsv] }, by: 0)
+        .join(combined_tsvs, by: 0)
         .branch { _target_id, bg_id, _meta, _target_tsv ->
             no_bg: bg_id == "NO_BG"
             needs_bg: bg_id != "NO_BG"
@@ -245,7 +245,7 @@ workflow {
 
     ch_with_bg = routed_bg.needs_bg
         .map { _target_id, bg_id, meta, target_tsv -> [bg_id, meta, target_tsv] }
-        .join(combined_tsvs.map { meta, tsv -> [meta, tsv] }, by: 0)
+        .join(combined_tsvs.map { bg_id_key, _meta, tsv -> [bg_id_key, tsv] }, by: 0)
         .map { _bg_id, meta, target_tsv, bg_tsv -> [meta, target_tsv, bg_tsv] }
 
     SUBTRACTBKG(ch_no_bg.mix(ch_with_bg))
