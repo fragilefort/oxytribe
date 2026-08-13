@@ -4,8 +4,8 @@ process SAM_TO_MAP {
     tag "${meta.id}"
 
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'ghcr.io/fragilefort/oxytribe@sha256:edfe94b517ab63e69ebf032188616b19de594e2269f9f81b24f27573194774ac'
-        : 'ghcr.io/fragilefort/oxytribe@sha256:edfe94b517ab63e69ebf032188616b19de594e2269f9f81b24f27573194774ac'}"
+        ? 'ghcr.io/fragilefort/oxytribe@sha256:994fabbe29b2e59aab1708a457d70b52c5d03d1f41737f3c31df164674c8d974'
+        : 'ghcr.io/fragilefort/oxytribe@sha256:994fabbe29b2e59aab1708a457d70b52c5d03d1f41737f3c31df164674c8d974'}"
 
     input:
     tuple val(meta), path(sam)
