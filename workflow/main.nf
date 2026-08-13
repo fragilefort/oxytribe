@@ -34,8 +34,7 @@ params {
     combination_mode: String
     control_combination: String
     comparisons_csv: Path
-    min_control_coverage: Integer
-    max_control_edit_frac: BigDecimal
+    min_rna_edit_count: Integer
     min_control_non_g_frac: BigDecimal
     min_rna_coverage: Integer
     min_rna_edit_frac: BigDecimal
@@ -88,6 +87,9 @@ workflow {
 
     reffasta_ch = channel.fromPath(params.ref_fasta).map { fasta -> [[id: 'genome'], fasta] }
     refgtf_ch = channel.fromPath(params.ref_gtf).map { gtf -> [[id: 'genome'], gtf] }
+    PREPARE_GENE_SPANS(
+        channel.fromPath(params.ref_gtf)
+    )
 
     STAR_GENOMEGENERATE(reffasta_ch, refgtf_ch)
 
@@ -198,11 +200,12 @@ workflow {
 
     FIND_EDIT_SITES(
         find_edit_input_ch,
+        PREPARE_GENE_SPANS.out.gtf.first(),
+        params.chr_list,
         params.min_control_coverage,
         params.max_control_edit_frac,
         params.min_control_non_g_frac,
-        params.min_rna_coverage,
-        params.min_rna_edit_frac,
+        params.min_rna_edit_count,
     )
 
     FIND_EDIT_SITES.out.bin
