@@ -25,11 +25,19 @@ enum Mode {
     Or,
 }
 
+// Controls: chr_id(1) pos(4) g(4) other(4) = 13 bytes
+// Filtered treatments: chr_id(1) pos(4) strand(1) rna_g(4) rna_other(4) ctrl_g(4) ctrl_other(4) = 22 bytes
+const RAW_REC_SIZE: usize = 13;
+const FILTERED_REC_SIZE: usize = 22;
+
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
-    // Controls = 13 bytes; Filtered treatments = 21 bytes
-    let record_size: usize = if cli.raw { 13 } else { 21 };
+    let record_size: usize = if cli.raw {
+        RAW_REC_SIZE
+    } else {
+        FILTERED_REC_SIZE
+    };
 
     let chr_names: Vec<String> = cli
         .chr_list
@@ -51,7 +59,6 @@ fn main() -> std::io::Result<()> {
     let outfile = File::create(&cli.output)?;
     let mut writer = BufWriter::new(outfile);
 
-    // Only write TSV header for treatment combinations
     if !cli.raw {
         writeln!(
             writer,
@@ -67,33 +74,37 @@ fn main() -> std::io::Result<()> {
     let mut pointers: Vec<usize> = vec![0; mmaps.len()];
     let n_files = mmaps.len();
 
-    let current_pos = |mmap: &[u8], ptr: usize| -> Option<(u8, u32)> {
+    // key = (chr_id, pos, strand). strand is always 0 in raw mode — controls
+    // have no strand field, and pooling them isn't strand-aware, so treating
+    // strand as a constant there is a correct no-op, not a workaround.
+    let current_key = |mmap: &[u8], ptr: usize| -> Option<(u8, u32, u8)> {
         let offset = ptr * record_size;
         if offset + record_size > mmap.len() {
             None
         } else {
             let chr_id = mmap[offset];
             let pos = u32::from_le_bytes(mmap[offset + 1..offset + 5].try_into().unwrap());
-            Some((chr_id, pos))
+            let strand = if cli.raw { 0 } else { mmap[offset + 5] };
+            Some((chr_id, pos, strand))
         }
     };
 
     while pointers
         .iter()
         .enumerate()
-        .any(|(i, &p)| current_pos(&mmaps[i], p).is_some())
+        .any(|(i, &p)| current_key(&mmaps[i], p).is_some())
     {
         let min_key = pointers
             .iter()
             .enumerate()
-            .filter_map(|(i, &p)| current_pos(&mmaps[i], p))
+            .filter_map(|(i, &p)| current_key(&mmaps[i], p))
             .min()
             .unwrap();
 
         let contributors: Vec<usize> = pointers
             .iter()
             .enumerate()
-            .filter(|&(i, &p)| current_pos(&mmaps[i], p) == Some(min_key))
+            .filter(|&(i, &p)| current_key(&mmaps[i], p) == Some(min_key))
             .map(|(i, _)| i)
             .collect();
 
@@ -103,11 +114,13 @@ fn main() -> std::io::Result<()> {
         };
 
         if emit {
+            let (g_off, other_off) = if cli.raw { (5, 9) } else { (6, 10) };
+
             let sum_g = contributors
                 .iter()
                 .map(|&i| {
                     let off = pointers[i] * record_size;
-                    u32::from_le_bytes(mmaps[i][off + 5..off + 9].try_into().unwrap())
+                    u32::from_le_bytes(mmaps[i][off + g_off..off + g_off + 4].try_into().unwrap())
                 })
                 .sum::<u32>();
 
@@ -115,32 +128,34 @@ fn main() -> std::io::Result<()> {
                 .iter()
                 .map(|&i| {
                     let off = pointers[i] * record_size;
-                    u32::from_le_bytes(mmaps[i][off + 9..off + 13].try_into().unwrap())
+                    u32::from_le_bytes(
+                        mmaps[i][off + other_off..off + other_off + 4]
+                            .try_into()
+                            .unwrap(),
+                    )
                 })
                 .sum::<u32>();
 
             let sum_total = sum_g + sum_other;
 
             if cli.raw {
-                // WRITE 13-BYTE BINARY FOR COMBINED CONTROLS
                 if sum_total > 0 {
-                    let (chr_id, pos) = min_key;
+                    let (chr_id, pos, _strand) = min_key;
                     writer.write_all(&[chr_id])?;
                     writer.write_all(&pos.to_le_bytes())?;
                     writer.write_all(&sum_g.to_le_bytes())?;
                     writer.write_all(&sum_other.to_le_bytes())?;
                 }
             } else if sum_total > 0 {
-                // WRITE TSV FOR COMBINED TREATMENTS
                 let first = contributors[0];
                 let off = pointers[first] * record_size;
                 let ctrl_g =
-                    u32::from_le_bytes(mmaps[first][off + 13..off + 17].try_into().unwrap());
+                    u32::from_le_bytes(mmaps[first][off + 14..off + 18].try_into().unwrap());
                 let ctrl_other =
-                    u32::from_le_bytes(mmaps[first][off + 17..off + 21].try_into().unwrap());
+                    u32::from_le_bytes(mmaps[first][off + 18..off + 22].try_into().unwrap());
                 let ctrl_total = ctrl_g + ctrl_other;
 
-                let (chr_id, pos) = min_key;
+                let (chr_id, pos, _strand) = min_key;
                 let chr_name = &chr_names[chr_id as usize];
                 let rna_edit_frac = sum_g as f64 / sum_total as f64;
 

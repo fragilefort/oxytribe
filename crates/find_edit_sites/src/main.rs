@@ -113,11 +113,21 @@ fn main() -> std::io::Result<()> {
                 return;
             };
 
-            // interval-stabbing: find every gene span overlapping this position.
-            // Linear scan restricted to this chromosome's genes — fine at
-            // test-genome scale, but revisit with an interval tree if this
-            // becomes a bottleneck on a full genome.
+            // dedupe: multiple overlapping genes on the SAME strand at this
+            // position would otherwise emit identical duplicate rows, breaking
+            // combine_edit_sites' sorted-merge assumption. Track which strands
+            // we've already emitted for this position.
+            let mut emitted_plus = false;
+            let mut emitted_minus = false;
+
             for gene in spans.iter().filter(|g| g.start <= pos && pos <= g.end) {
+                if gene.strand_plus && emitted_plus {
+                    continue;
+                }
+                if !gene.strand_plus && emitted_minus {
+                    continue;
+                }
+
                 let (rna_g, rna_other) = if gene.strand_plus {
                     (rna_a_to_g, rna_a_match)
                 } else {
@@ -147,15 +157,21 @@ fn main() -> std::io::Result<()> {
                 if passes {
                     writer.write_all(&[chr_id]).unwrap();
                     writer.write_all(&pos.to_le_bytes()).unwrap();
+                    writer.write_all(&[gene.strand_plus as u8]).unwrap(); // NEW: strand byte
                     writer.write_all(&rna_g.to_le_bytes()).unwrap();
                     writer.write_all(&rna_other.to_le_bytes()).unwrap();
                     writer.write_all(&ctrl_g.to_le_bytes()).unwrap();
                     writer.write_all(&ctrl_other.to_le_bytes()).unwrap();
                 }
+
+                if gene.strand_plus {
+                    emitted_plus = true;
+                } else {
+                    emitted_minus = true;
+                }
             }
         },
     );
-
     writer.flush()?;
     Ok(())
 }
