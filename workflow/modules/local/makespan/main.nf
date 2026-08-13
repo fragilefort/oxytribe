@@ -82,9 +82,9 @@ process PREPARE_GENE_SPANS {
     with open(out_path, "w") as out:
         for g in records:
             out.write(
-                f"{g['chrom']}\\tsynthetic\\tgene\\t"
-                f"{g['start']}\\t{g['end']}\\t.\\t{g['strand']}\\t.\\t"
-                f'gene_id "{g["id"]}"; gene_name "{g["name"]}";\\n'
+                f"{g['chrom']}\tsynthetic\tgene\t"
+                f"{g['start']}\t{g['end']}\t.\t{g['strand']}\t.\t"
+                f'gene_id "{g["id"]}"; transcript_id "{g["id"]}"; gene_name "{g["name"]}";\n'
             )
 
     print(f"genes written: {len(records)}", file=sys.stderr)
