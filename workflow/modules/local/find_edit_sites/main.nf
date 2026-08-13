@@ -2,8 +2,8 @@ process FIND_EDIT_SITES {
     tag "${meta.id}"
 
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'ghcr.io/fragilefort/oxytribe@sha256:edfe94b517ab63e69ebf032188616b19de594e2269f9f81b24f27573194774ac'
-        : 'ghcr.io/fragilefort/oxytribe@sha256:edfe94b517ab63e69ebf032188616b19de594e2269f9f81b24f27573194774ac'}"
+        ? 'ghcr.io/fragilefort/oxytribe@sha256:5ff5cc23a935ce9ad2ab90836fa4ef2f4ae1e4b0a46e00d82e7e1e3ceaf101fc'
+        : 'ghcr.io/fragilefort/oxytribe@sha256:5ff5cc23a935ce9ad2ab90836fa4ef2f4ae1e4b0a46e00d82e7e1e3ceaf101fc'}"
 
     input:
     tuple val(meta), path(rna_bin), path(ctrl_bin)
