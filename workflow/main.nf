@@ -228,7 +228,7 @@ workflow {
         .set { bg_relations_ch }
 
     COMBINE_EDIT_SITES.out.tsv
-        .map { meta, tsv -> [meta.id, meta, tsv] }
+        .map { condition, tsv -> [condition, [id: condition], tsv] }
         .set { combined_tsvs }
 
     bg_relations_ch
