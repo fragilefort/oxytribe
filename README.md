@@ -1,6 +1,12 @@
 # OXYTRIBE
 OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and gene-level target prioritization. It is a full rewrite of the original [HyperTRIBE](https://github.com/rosbashlab/HyperTRIBE) computational pipeline, replacing the Perl/Python/MySQL stack with Rust binaries and Nextflow, removing the database dependency entirely, and adding support for multi-replicate comparison with configurable AND/OR logic. Note, this is not a typical rewrite where the same logic is retained, OXYTRIBE uses a very different approach across all main steps from HyperTRIBE.
 
+## Documentation
+
+- [Parameters](docs/parameters.md) : configuration and command-line parameters
+- [Output](docs/output.md) :  output files and their structure
+- [Validation](docs/validation.md) : validation and comparsions with the HyperTRIBE pipeline
+
 ## TODO
 
 - [x] Converting sam_to_matrix.pl to Rust
