@@ -18,6 +18,9 @@ Rscript workflow/bin/validate.r \
     --legacy_xls <path to legacy HyperTRIBE_results_*.xls> \
     --top_n 30 \
     --out_dir validation_output
+# or simply
+pixi run validation 
+# this does the same with the default paths, top_n 30
 ```
 
 `--edit_threshold` on the main pipeline should be set to `0` when generating the `_summary_gene.tsv` used here, the legacy xls this compares against was produced with no editing-fraction cutoff applied before reporting (see "Known pipeline differences" below).
