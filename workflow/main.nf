@@ -40,7 +40,6 @@ params {
     min_rna_edit_count: Integer
     edit_threshold: BigDecimal
     umi: Boolean
-    exons_only: Boolean
     skip_umiextract: Boolean
     skip_trimming: Boolean
 }

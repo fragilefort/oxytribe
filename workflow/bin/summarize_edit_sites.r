@@ -17,13 +17,12 @@ parse_args <- function(args) {
 opts <- parse_args(args)
 
 if (!all(c("input", "output", "threshold") %in% names(opts))) {
-    stop("Usage: Rscript summarize_editing.R --input <tsv> --output <tsv> --threshold <float> [--exons_only <true|false>]")
+    stop("Usage: Rscript summarize_editing.R --input <tsv> --output <tsv> --threshold <float>")
 }
 
 input_path <- opts$input
 output_path <- opts$output
 edit_threshold <- as.numeric(opts$threshold)
-exons_only <- if (!is.null(opts$exons_only)) as.logical(opts$exons_only) else FALSE
 
 gene_output <- sub("\\.tsv$", "_gene.tsv", output_path)
 
@@ -75,14 +74,6 @@ cat("Total rows loaded:", nrow(dt), "\n")
 dt[, rna_edit_frac := as.numeric(rna_edit_frac)]
 dt <- dt[rna_edit_frac >= edit_threshold]
 cat("Rows after site-level threshold filter (>= ", edit_threshold, "): ", nrow(dt), "\n", sep = "")
-
-# Apply optional exon-only filter based on command-line flag
-if (exons_only) {
-    dt <- dt[gtf_feature == "exon"]
-    cat("Rows after exons_only filter:", nrow(dt), "\n")
-} else {
-    cat("Processing all annotated features (exons + introns).\n")
-}
 
 if (nrow(dt) == 0) {
     cat("No matching edit sites found. Writing empty outputs...\n")
