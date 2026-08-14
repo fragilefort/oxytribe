@@ -27,7 +27,7 @@ new_gene_path <- if (!is.null(opts$new_gene_summary)) {
 legacy_xls_path <- if (!is.null(opts$legacy_xls)) {
     opts$legacy_xls
 } else {
-    here("workflow/contract/test/validation_data/")
+    here("workflow/contract/test/validation_data/HyperTRIBE_results_wtRNA.xls")
 }
 top_n <- if (!is.null(opts$top_n)) as.integer(opts$top_n) else 30
 out_dir <- if (!is.null(opts$out_dir)) opts$out_dir else "validation_output"
