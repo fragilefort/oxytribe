@@ -22,7 +22,7 @@ OXYTRIBE is a Nextflow pipeline for HyperTRIBE RNA editing identification and ge
 - [x] Update the documentation for installation and test profile
 - [x] Docs for parameters
 - [ ] Docs for validation
-- [ ] Docs for outputs
+- [x] Docs for outputs
 
 ## Architecture
 The pipeline is handled  using Nextflow (DSL2). Read processing, alignment, and QC are handled via standard bioinformatics modules (nf-core), followed by a custom 3 Rust binaries for candidate site identification, and downstream R / Bedtools modules for background subtraction, GTF annotation, and target summarization.All modules here support docker containers and apptainers, custom binaries uses sha digests to insure reproducablity.
