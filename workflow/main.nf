@@ -259,7 +259,7 @@ workflow {
     )
 
     BEDTOOLS_INTERSECT(
-        SUBTRACTBKG.out.tsv.combine(refgtf_ch.map { _meta, gtf -> gtf }),
+        SUBTRACTBKG.out.tsv.combine(PREPARE_GENE_SPANS.out.gtf),
         SAMTOOLS_FAIDX.out.sizes.first(),
     )
 
