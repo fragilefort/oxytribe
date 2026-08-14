@@ -7,8 +7,13 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = TRUE)
 
 parse_args <- function(args) {
+    if (length(args) == 0) {
+        return(list())
+    }
+
     keys <- args[seq(1, length(args), 2)]
     values <- args[seq(2, length(args), 2)]
+
     setNames(as.list(values), gsub("^--", "", keys))
 }
 
