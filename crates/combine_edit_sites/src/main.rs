@@ -11,10 +11,8 @@ struct Cli {
     output: PathBuf,
     #[arg(long, default_value = "or")]
     mode: Mode,
-    /// Chromosome list (required when outputting TSV)
     #[arg(long)]
     chr_list: Option<PathBuf>,
-    /// Pass if pooling raw 13-byte control maps (outputs a 13-byte .bin)
     #[arg(long)]
     raw: bool,
 }
@@ -25,14 +23,13 @@ enum Mode {
     Or,
 }
 
-// Controls: chr_id(1) pos(4) g(4) other(4) = 13 bytes
-// Filtered treatments: chr_id(1) pos(4) strand(1) rna_g(4) rna_other(4) ctrl_g(4) ctrl_other(4) = 22 bytes
-const RAW_REC_SIZE: usize = 13;
+// Controls (sam_to_map output): chr_id(1) pos(4) a_to_g(4) a_match(4) t_to_c(4) t_match(4) = 21 bytes
+// Filtered treatments (find_edit_sites output): chr_id(1) pos(4) strand(1) rna_g(4) rna_other(4) ctrl_g(4) ctrl_other(4) = 22 bytes
+const RAW_REC_SIZE: usize = 21;
 const FILTERED_REC_SIZE: usize = 22;
 
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
-
     let record_size: usize = if cli.raw {
         RAW_REC_SIZE
     } else {
@@ -53,9 +50,8 @@ fn main() -> std::io::Result<()> {
     let files: Vec<File> = cli
         .inputs
         .iter()
-        .map(|path| File::open(path).expect("Cannot open input file"))
+        .map(|p| File::open(p).expect("Cannot open input file"))
         .collect();
-
     let outfile = File::create(&cli.output)?;
     let mut writer = BufWriter::new(outfile);
 
@@ -70,13 +66,11 @@ fn main() -> std::io::Result<()> {
         .iter()
         .map(|f| unsafe { Mmap::map(f).expect("couldn't mmap file") })
         .collect();
-
     let mut pointers: Vec<usize> = vec![0; mmaps.len()];
     let n_files = mmaps.len();
 
-    // key = (chr_id, pos, strand). strand is always 0 in raw mode — controls
-    // have no strand field, and pooling them isn't strand-aware, so treating
-    // strand as a constant there is a correct no-op, not a workaround.
+    // strand pinned to 0 in raw mode — sam_to_map output has no strand byte,
+    // pooling controls is strand-agnostic at this stage
     let current_key = |mmap: &[u8], ptr: usize| -> Option<(u8, u32, u8)> {
         let offset = ptr * record_size;
         if offset + record_size > mmap.len() {
@@ -114,63 +108,74 @@ fn main() -> std::io::Result<()> {
         };
 
         if emit {
-            let (g_off, other_off) = if cli.raw { (5, 9) } else { (6, 10) };
-
-            let sum_g = contributors
-                .iter()
-                .map(|&i| {
-                    let off = pointers[i] * record_size;
-                    u32::from_le_bytes(mmaps[i][off + g_off..off + g_off + 4].try_into().unwrap())
-                })
-                .sum::<u32>();
-
-            let sum_other = contributors
-                .iter()
-                .map(|&i| {
-                    let off = pointers[i] * record_size;
-                    u32::from_le_bytes(
-                        mmaps[i][off + other_off..off + other_off + 4]
-                            .try_into()
-                            .unwrap(),
-                    )
-                })
-                .sum::<u32>();
-
-            let sum_total = sum_g + sum_other;
-
             if cli.raw {
-                if sum_total > 0 {
-                    let (chr_id, pos, _strand) = min_key;
+                // sum all 4 channels independently across contributing replicates
+                let sum4 = |field_off: usize| -> u32 {
+                    contributors
+                        .iter()
+                        .map(|&i| {
+                            let off = pointers[i] * record_size + field_off;
+                            u32::from_le_bytes(mmaps[i][off..off + 4].try_into().unwrap())
+                        })
+                        .sum()
+                };
+                let a_to_g = sum4(5);
+                let a_match = sum4(9);
+                let t_to_c = sum4(13);
+                let t_match = sum4(17);
+
+                if a_to_g + a_match + t_to_c + t_match > 0 {
+                    let (chr_id, pos, _) = min_key;
                     writer.write_all(&[chr_id])?;
                     writer.write_all(&pos.to_le_bytes())?;
-                    writer.write_all(&sum_g.to_le_bytes())?;
-                    writer.write_all(&sum_other.to_le_bytes())?;
+                    writer.write_all(&a_to_g.to_le_bytes())?;
+                    writer.write_all(&a_match.to_le_bytes())?;
+                    writer.write_all(&t_to_c.to_le_bytes())?;
+                    writer.write_all(&t_match.to_le_bytes())?;
                 }
-            } else if sum_total > 0 {
-                let first = contributors[0];
-                let off = pointers[first] * record_size;
-                let ctrl_g =
-                    u32::from_le_bytes(mmaps[first][off + 14..off + 18].try_into().unwrap());
-                let ctrl_other =
-                    u32::from_le_bytes(mmaps[first][off + 18..off + 22].try_into().unwrap());
-                let ctrl_total = ctrl_g + ctrl_other;
+            } else {
+                let sum_g = contributors
+                    .iter()
+                    .map(|&i| {
+                        let off = pointers[i] * record_size;
+                        u32::from_le_bytes(mmaps[i][off + 6..off + 10].try_into().unwrap())
+                    })
+                    .sum::<u32>();
+                let sum_other = contributors
+                    .iter()
+                    .map(|&i| {
+                        let off = pointers[i] * record_size;
+                        u32::from_le_bytes(mmaps[i][off + 10..off + 14].try_into().unwrap())
+                    })
+                    .sum::<u32>();
+                let sum_total = sum_g + sum_other;
 
-                let (chr_id, pos, _strand) = min_key;
-                let chr_name = &chr_names[chr_id as usize];
-                let rna_edit_frac = sum_g as f64 / sum_total as f64;
+                if sum_total > 0 {
+                    let first = contributors[0];
+                    let off = pointers[first] * record_size;
+                    let ctrl_g =
+                        u32::from_le_bytes(mmaps[first][off + 14..off + 18].try_into().unwrap());
+                    let ctrl_other =
+                        u32::from_le_bytes(mmaps[first][off + 18..off + 22].try_into().unwrap());
+                    let ctrl_total = ctrl_g + ctrl_other;
 
-                writeln!(
-                    writer,
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}",
-                    chr_name,
-                    pos - 1,
-                    pos,
-                    sum_g,
-                    sum_total,
-                    ctrl_g,
-                    ctrl_total,
-                    rna_edit_frac
-                )?;
+                    let (chr_id, pos, _) = min_key;
+                    let chr_name = &chr_names[chr_id as usize];
+                    let rna_edit_frac = sum_g as f64 / sum_total as f64;
+
+                    writeln!(
+                        writer,
+                        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.4}",
+                        chr_name,
+                        pos - 1,
+                        pos,
+                        sum_g,
+                        sum_total,
+                        ctrl_g,
+                        ctrl_total,
+                        rna_edit_frac
+                    )?;
+                }
             }
         }
 
