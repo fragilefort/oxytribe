@@ -38,7 +38,7 @@ The pipeline is implemented using Nextflow (DSL2). Read processing, alignment, a
 
 All modules support Docker containers and Apptainer/Singularity. Custom binaries use SHA digests to ensure reproducibility.
 
-![](./assets/arc.svg)
+![](./assets/arc.png)
 
 ## Installation
 
