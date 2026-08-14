@@ -3,8 +3,8 @@ process COMBINE_EDIT_SITES {
     label 'process_single'
 
     container "${workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-        ? 'ghcr.io/fragilefort/oxytribe@sha256:994fabbe29b2e59aab1708a457d70b52c5d03d1f41737f3c31df164674c8d974'
-        : 'ghcr.io/fragilefort/oxytribe@sha256:994fabbe29b2e59aab1708a457d70b52c5d03d1f41737f3c31df164674c8d974'}"
+        ? 'ghcr.io/fragilefort/oxytribe@sha256:6cace988efe7bd1fd4961b8997f6c12a6ade940264b5f77e55d46df7b30a166d'
+        : 'ghcr.io/fragilefort/oxytribe@sha256:6cace988efe7bd1fd4961b8997f6c12a6ade940264b5f77e55d46df7b30a166d'}"
 
     input:
     tuple val(condition), path(bins)
