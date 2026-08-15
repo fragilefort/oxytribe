@@ -5,6 +5,7 @@
 .nextflow*
 .nf-core.yml
 *.sif
+docs/local_doc.md
 
 
 # Added by cargo
