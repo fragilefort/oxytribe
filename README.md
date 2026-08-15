@@ -181,6 +181,13 @@ The test workflow:
 
 Expected output is written to `ChinaTown/`, including editing sites for the `HyperTRIBE_vs_wtRNA` comparison.
 
+The above test designed for server runs, to run it locally, we put a cap on available resources:
+```bash
+pixi run download-test-data
+pixi run nextflow run workflow/main.nf -profile local,test,docker
+
+```
+
 See [Validation](docs/validation.md) for details about the test dataset, validation procedure, and comparison with the original HyperTRIBE pipeline.
 
 ## Output
