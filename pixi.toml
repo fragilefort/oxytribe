@@ -3,7 +3,7 @@ authors = ["fragilefort <imaddex3759@gmail.com>"]
 channels = ["conda-forge", "bioconda"]
 name = "oxytribe"
 platforms = ["linux-64"]
-version = "0.1.0"
+version = "1.0.0"
 
 [dependencies]
 nextflow = ">=26.4.1,<27"
