@@ -8,6 +8,8 @@ Note: this is not a typical rewrite where the same logic is retained. OXYTRIBE u
 - [Parameters](docs/parameters.md) : configuration and command-line parameters
 - [Output](docs/output.md) : output files and their structure
 - [Validation](docs/validation.md) : validation and comparisons with the HyperTRIBE pipeline
+- [Miscellaneous](docs/misc.md) : Miscellaneous configuration notes
+
 
 ## TODO
 
